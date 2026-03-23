@@ -30,9 +30,9 @@ export default function Result() {
             .catch(() => undefined);
     }, [API_URL]);
 
-    const resultAvailable = state.resultAvailable === true;
-    const scores = state.finalScores;
     const isDataReady = state.resultAvailable !== null;
+    const resultAvailable = isDataReady && state.resultAvailable === true;
+    const scores = state.finalScores;
     const pgMap = scores?.passingGrades || {};
     const scoreMode = scores?.scoreMode || 'category';
     const categories = Object.keys(scores?.detailed || {});

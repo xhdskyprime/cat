@@ -121,7 +121,8 @@ export function ExamProvider({ children }) {
         if (state.submitStatus === 'submitting') return { success: false };
         if (state.isFinished && state.submitStatus === 'done') return { success: true, scores: state.finalScores, resultAvailable: state.resultAvailable };
 
-        dispatch({ type: 'FINISH_EXAM', payload: { scores: null, resultAvailable: state.resultAvailable, exam: { id: state.examId, title: state.examTitle } } });
+        // Reset resultAvailable to null when starting the submission process
+        dispatch({ type: 'FINISH_EXAM', payload: { scores: null, resultAvailable: null, exam: { id: state.examId, title: state.examTitle } } });
         dispatch({ type: 'SET_SUBMIT_STATUS', payload: 'submitting' });
 
         try {
