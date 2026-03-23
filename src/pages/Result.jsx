@@ -30,8 +30,9 @@ export default function Result() {
             .catch(() => undefined);
     }, [API_URL]);
 
-    const resultAvailable = state.resultAvailable !== false;
-    const scores = resultAvailable ? (state.finalScores || { total: 0, isPassed: false, passingGrades: null, detailed: {}, scoreMode: 'category' }) : null;
+    const resultAvailable = state.resultAvailable === true;
+    const scores = state.finalScores;
+    const isDataReady = state.resultAvailable !== null;
     const pgMap = scores?.passingGrades || {};
     const scoreMode = scores?.scoreMode || 'category';
     const categories = Object.keys(scores?.detailed || {});
@@ -60,6 +61,27 @@ export default function Result() {
     const isProcessing = resultAvailable && !state.finalScores && state.submitStatus === 'submitting';
 
     if (!user) return null;
+
+    // Loading State saat data resultAvailable masih null (menunggu server)
+    if (!isDataReady) {
+        return (
+            <div style={{
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#0f172a',
+                color: 'white',
+                fontFamily: 'Inter, sans-serif'
+            }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: 40, height: 40, border: '4px solid rgba(255,255,255,0.1)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+                    <p style={{ opacity: 0.8, fontSize: '0.9rem' }}>Memuat hasil ujian...</p>
+                </div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
+    }
 
     const handleLogout = () => { resetExam(); logout(); navigate('/login'); };
     const handlePrint = () => window.print();
