@@ -1,0 +1,355 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --secondary: #0ea5e9;
+  --accent: #f43f5e;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --bg: #020617;
+  --surface: #0f172a;
+  --surface-light: #1e293b;
+  --border: rgba(255, 255, 255, 0.06);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --glass: rgba(15, 23, 42, 0.8);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23000000' stroke-width='2' stroke-opacity='0.6'%3E%3Ccircle cx='0' cy='0' r='28'/%3E%3Ccircle cx='80' cy='0' r='28'/%3E%3Ccircle cx='0' cy='80' r='28'/%3E%3Ccircle cx='80' cy='80' r='28'/%3E%3Ccircle cx='40' cy='40' r='28'/%3E%3Cpath d='M40 12 L45 20 L40 28 L35 20 Z' fill='%23000000' fill-opacity='0.3'/%3E%3Cpath d='M40 52 L45 60 L40 68 L35 60 Z' fill='%23000000' fill-opacity='0.3'/%3E%3Cpath d='M12 40 L20 45 L28 40 L20 35 Z' fill='%23000000' fill-opacity='0.3'/%3E%3Cpath d='M52 40 L60 45 L68 40 L60 35 Z' fill='%23000000' fill-opacity='0.3'/%3E%3Ccircle cx='40' cy='40' r='3' fill='%23000000' fill-opacity='0.5'/%3E%3C/g%3E%3C/svg%3E");
+  background-attachment: fixed;
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-light);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Base Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--surface-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Responsive Grid & Layouts */
+.responsive-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 768px) {
+  .responsive-container {
+    padding: 0 2rem;
+  }
+}
+
+/* Typography Scale */
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+}
+
+h3 {
+  font-size: 1.125rem;
+}
+
+@media (min-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Responsive Table */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile Sidebar Toggle - Used in Admin Dashboard */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 998;
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 1024px) {
+  .sidebar-collapsed {
+    transform: translateX(-100%);
+    position: fixed !important;
+    z-index: 999;
+  }
+
+  .sidebar-open {
+    transform: translateX(0);
+    position: fixed !important;
+    z-index: 999;
+  }
+
+  .sidebar-overlay.active {
+    display: block;
+  }
+
+  .main-content-fluid {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* Exam Layout Responsiveness */
+@media (max-width: 1024px) {
+  .exam-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .exam-sidebar {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 50vh;
+    border-left: none !important;
+    border-top: 1px solid var(--border);
+    z-index: 200;
+    background: var(--surface) !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5) !important;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+  }
+
+  .exam-sidebar.open {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .padding-mobile {
+    padding: 1rem !important;
+  }
+
+  .gap-mobile {
+    gap: 0.5rem !important;
+  }
+}
+
+/* Utility classes */
+.blur-glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.batik-light {
+  background-color: #f8fafc !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-opacity='0.5'%3E%3Ccircle cx='0' cy='0' r='28'/%3E%3Ccircle cx='80' cy='0' r='28'/%3E%3Ccircle cx='0' cy='80' r='28'/%3E%3Ccircle cx='80' cy='80' r='28'/%3E%3Ccircle cx='40' cy='40' r='28'/%3E%3Cpath d='M40 12 L45 20 L40 28 L35 20 Z' fill='%23cbd5e1' fill-opacity='0.25'/%3E%3Cpath d='M40 52 L45 60 L40 68 L35 60 Z' fill='%23cbd5e1' fill-opacity='0.25'/%3E%3Cpath d='M12 40 L20 45 L28 40 L20 35 Z' fill='%23cbd5e1' fill-opacity='0.25'/%3E%3Cpath d='M52 40 L60 45 L68 40 L60 35 Z' fill='%23cbd5e1' fill-opacity='0.25'/%3E%3Ccircle cx='40' cy='40' r='3' fill='%23cbd5e1' fill-opacity='0.5'/%3E%3C/g%3E%3C/svg%3E") !important;
+  background-attachment: fixed !important;
+}
+
+/* Elegant UI Components (Replacing Uiverse.io) */
+.uiverse-glow-btn {
+  padding: 1.125rem;
+  border: none;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: #fff;
+  border-radius: 12px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.uiverse-glow-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+}
+
+.uiverse-glow-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.uiverse-glow-btn:disabled {
+  background: var(--surface-light);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.uiverse-input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-light);
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.uiverse-input:hover,
+.uiverse-input:focus {
+  border: 1px solid var(--primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.uiverse-checkbox {
+  appearance: none;
+  background-color: transparent;
+  margin: 0;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--text-muted);
+  border-radius: 6px;
+  display: grid;
+  place-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.uiverse-checkbox::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  background-color: transparent;
+  transform-origin: center;
+  border-right: 2px solid white;
+  border-bottom: 2px solid white;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.uiverse-checkbox:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.uiverse-checkbox:checked::before {
+  transform: scale(1);
+}
+
+.uiverse-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
