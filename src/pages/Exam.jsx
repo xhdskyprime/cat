@@ -576,20 +576,8 @@ export default function Exam() {
                             })}
                         </div>
 
-                        {/* Navigation Buttons Row */}
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: 'auto' }}>
-                            <button className="btn-3d grey-btn" onClick={prevQuestion} disabled={state.currentIndex === 0} style={{ padding: '1rem 2rem', borderRadius: '100px', fontWeight: 800, fontSize: '1.1rem', background: '#f8fafc', color: '#64748b', border: 'none', borderBottom: '4px solid #cbd5e1', cursor: state.currentIndex === 0 ? 'not-allowed' : 'pointer', opacity: state.currentIndex === 0 ? 0.5 : 1 }}>
-                                Sebelumnya
-                            </button>
-
-                            <button className="btn-3d doubt-btn" onClick={() => toggleDoubt(state.currentIndex)} style={{ padding: '1rem 2rem', borderRadius: '100px', fontWeight: 800, fontSize: '1.1rem', background: currentAnswer?.isDoubt ? '#fef3c7' : 'white', color: currentAnswer?.isDoubt ? '#d97706' : '#94a3b8', border: 'none', borderBottom: `4px solid ${currentAnswer?.isDoubt ? '#f59e0b' : '#e2e8f0'}`, cursor: 'pointer' }}>
-                                {currentAnswer?.isDoubt ? 'Ragu-Ragu Aktif' : 'Tandai Ragu'}
-                            </button>
-
-                            <button className="btn-3d green-btn" onClick={nextQuestion} disabled={state.currentIndex === state.questions.length - 1} style={{ padding: '1rem 3rem', borderRadius: '100px', fontWeight: 800, fontSize: '1.1rem', background: '#10b981', color: 'white', border: 'none', borderBottom: '4px solid #059669', cursor: state.currentIndex === state.questions.length - 1 ? 'not-allowed' : 'pointer', opacity: state.currentIndex === state.questions.length - 1 ? 0.5 : 1 }}>
-                                Selanjutnya
-                            </button>
-                        </div>
+                        {/* End of Left Panel Content */}
+                        <div style={{ marginTop: 'auto' }} />
 
                     </main>
 
@@ -640,8 +628,21 @@ export default function Exam() {
                             </div>
                         </div>
 
-                        <div style={{ padding: '1.5rem', background: '#f8fafc', borderTop: '1px solid #f1f5f9' }}>
-                            <button onClick={() => setShowConfirmFinish(true)} className="btn-3d red-btn" style={{ width: '100%', padding: '1.25rem', background: '#ef4444', color: 'white', fontWeight: 800, fontSize: '1.1rem', borderRadius: '16px', border: 'none', borderBottom: '4px solid #b91c1c', cursor: 'pointer' }}>
+                        <div style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button className="btn-3d grey-btn" onClick={prevQuestion} disabled={state.currentIndex === 0} style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontWeight: 800, fontSize: '0.95rem', background: '#f1f5f9', color: '#64748b', border: 'none', borderBottom: '4px solid #cbd5e1', cursor: state.currentIndex === 0 ? 'not-allowed' : 'pointer', opacity: state.currentIndex === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                    ← Sebelumnya
+                                </button>
+                                <button className="btn-3d green-btn" onClick={nextQuestion} disabled={state.currentIndex === state.questions.length - 1} style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontWeight: 800, fontSize: '0.95rem', background: '#10b981', color: 'white', border: 'none', borderBottom: '4px solid #059669', cursor: state.currentIndex === state.questions.length - 1 ? 'not-allowed' : 'pointer', opacity: state.currentIndex === state.questions.length - 1 ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                    Selanjutnya →
+                                </button>
+                            </div>
+
+                            <button className="btn-3d doubt-btn" onClick={() => toggleDoubt(state.currentIndex)} style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', fontWeight: 800, fontSize: '0.95rem', background: currentAnswer?.isDoubt ? '#fef3c7' : 'white', color: currentAnswer?.isDoubt ? '#d97706' : '#94a3b8', border: 'none', borderBottom: `4px solid ${currentAnswer?.isDoubt ? '#f59e0b' : '#e2e8f0'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                {currentAnswer?.isDoubt ? '🟡 Ragu-Ragu Aktif' : 'Tandai Ragu'}
+                            </button>
+
+                            <button onClick={() => setShowConfirmFinish(true)} className="btn-3d red-btn" style={{ width: '100%', padding: '0.6rem', background: '#ef4444', color: 'white', fontWeight: 800, fontSize: '0.85rem', borderRadius: '12px', border: 'none', borderBottom: '3px solid #b91c1c', cursor: 'pointer', marginTop: '0.25rem' }}>
                                 Selesaikan Ujian
                             </button>
                         </div>
