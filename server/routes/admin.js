@@ -334,13 +334,17 @@ router.post('/exams', authenticateAdmin, (req, res) => {
     const { title, description, duration_minutes, durationMinutes, token, config } = req.body;
     if (!title || !token) return res.status(400).json({ error: 'Nama ujian dan token wajib diisi.' });
 
-    db.get("SELECT id FROM exams ORDER BY id DESC LIMIT 1", [], (err, lastEx) => {
-        let nextNum = 1;
-        if (lastEx && lastEx.id) {
-            const current = parseInt(lastEx.id);
-            if (!isNaN(current)) nextNum = current + 1;
+    db.all("SELECT id FROM exams", [], (err, rows) => {
+        let maxId = 0;
+        if (rows && rows.length > 0) {
+            rows.forEach(r => {
+                const num = parseInt(r.id);
+                if (!isNaN(num) && num > maxId) {
+                    maxId = num;
+                }
+            });
         }
-        const newId = String(nextNum).padStart(5, '0');
+        const newId = String(maxId + 1).padStart(5, '0');
 
         const show_result = req.body.show_result !== undefined ? (req.body.show_result ? 1 : 0) : 1;
         db.run('INSERT INTO exams (id, title, description, duration_minutes, token, config, show_result) VALUES (?, ?, ?, ?, ?, ?, ?)',
