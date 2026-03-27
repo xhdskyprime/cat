@@ -75,6 +75,7 @@ console.log = (...args) => {
 
 // App Settings
 app.set('io', io);
+app.set('trust proxy', 1); // Trust first proxy (Nginx/Cloudflare) to fix express-rate-limit X-Forwarded-For error
 
 // Global Middleware
 app.use(helmet());

@@ -17,7 +17,8 @@ export default function UjianTab({ setModal }) {
                 showToast(res.data.error || 'Gagal menghapus', 'error');
             }
         } catch (e) {
-            showToast('Terjadi kesalahan koneksi', 'error');
+            const errorMsg = e.response?.data?.error || e.message || 'Terjadi kesalahan koneksi';
+            showToast(errorMsg, 'error');
         }
     };
 

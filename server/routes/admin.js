@@ -393,13 +393,16 @@ router.delete('/exams/:id', authenticateAdmin, (req, res) => {
     };
 
     db.serialize(() => {
+        // Hapus history sesi peserta (hanya data ujian peserta yang dihapus)
         db.run('DELETE FROM answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE exam_id=?)', [examId], errHandler);
         db.run('DELETE FROM exam_sessions WHERE exam_id=?', [examId], errHandler);
-        db.run('DELETE FROM questions WHERE exam_id=?', [examId], errHandler);
         db.run('UPDATE participants SET exam_id=NULL WHERE exam_id=?', [examId], errHandler); 
 
         db.run('DELETE FROM exams WHERE id=?', [examId], function (err) {
-            if (err) return res.status(500).json({ error: err.message });
+            if (err) {
+                console.error("=== FATAL EXAM DELETE DB ERROR ===", err.message);
+                return res.status(500).json({ error: err.message });
+            }
             logAudit(req.admin.username, 'DELETE_EXAM', 'exams', examId, null);
             res.json({ success: true, message: 'Sesi ujian beserta riwayatnya berhasil dihapus.' });
         });

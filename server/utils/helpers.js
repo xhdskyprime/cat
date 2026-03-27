@@ -201,7 +201,7 @@ const reconstructQuestions = (sessionId, examId) => {
                 const randomMap = {};
                 categories.forEach(c => randomMap[c.id] = c.is_random);
 
-                db.all('SELECT * FROM questions WHERE exam_id = ?', [examId], (err, allQuestions) => {
+                db.all('SELECT * FROM questions', [], (err, allQuestions) => {
                     if (err) return reject(new Error('Gagal memuat bank soal.'));
 
                     const grouped = {};
