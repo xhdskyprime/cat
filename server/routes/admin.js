@@ -387,12 +387,22 @@ router.patch('/exams/:id/settings', authenticateAdmin, (req, res) => {
 });
 
 router.delete('/exams/:id', authenticateAdmin, (req, res) => {
-    db.run('DELETE FROM exams WHERE id=?', [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        logAudit(req.admin.username, 'DELETE_EXAM', 'exams', req.params.id, null);
-        res.json({ success: true, message: 'Sesi ujian berhasil dihapus.' });
+    const examId = req.params.id;
+    db.serialize(() => {
+        // Hapus manual semua data terkait ujian untuk menghindari FOREIGN KEY error (Orphaned records)
+        db.run('DELETE FROM answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE exam_id=?)', [examId]);
+        db.run('DELETE FROM exam_sessions WHERE exam_id=?', [examId]);
+        db.run('DELETE FROM questions WHERE exam_id=?', [examId]);
+        db.run('UPDATE participants SET exam_id=NULL WHERE exam_id=?', [examId]); 
+
+        db.run('DELETE FROM exams WHERE id=?', [examId], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            logAudit(req.admin.username, 'DELETE_EXAM', 'exams', examId, null);
+            res.json({ success: true, message: 'Sesi ujian beserta riwayatnya berhasil dihapus.' });
+        });
     });
 });
+
 
 // ---- LIVE MONITORING ----
 router.get('/live-monitoring', authenticateAdmin, (req, res) => {
