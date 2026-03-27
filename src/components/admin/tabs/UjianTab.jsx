@@ -3,8 +3,24 @@ import { Card, Button, Badge, getTheme, DataTable, InfoNote } from '../ui/AdminU
 import { useAdmin } from '../../../context/AdminContext';
 
 export default function UjianTab({ setModal }) {
-    const { exams, loading, theme: mode } = useAdmin();
+    const { exams, loading, theme: mode, API, adminHeaders, showToast, fetchData } = useAdmin();
     const theme = getTheme(mode);
+
+    const handleDeleteExam = async (id, title) => {
+        if (!window.confirm(`Yakin ingin menghapus Sesi Ujian "${title}" beserta riwayatnya?`)) return;
+        try {
+            const res = await API.delete(`/admin/exams/${id}`, { headers: adminHeaders });
+            if (res.data.success) {
+                showToast('Sesi ujian dihapus', 'success');
+                fetchData('exams');
+            } else {
+                showToast(res.data.error || 'Gagal menghapus', 'error');
+            }
+        } catch (e) {
+            showToast('Terjadi kesalahan koneksi', 'error');
+        }
+    };
+
 
     const parseConfig = (cfg) => {
         try {
@@ -93,13 +109,18 @@ export default function UjianTab({ setModal }) {
             header: 'Aksi',
             align: 'right',
             render: (e) => (
-                <Button variant="outline" onClick={() => {
-                    const data = { ...e };
-                    if (data.show_result === undefined || data.show_result === null) data.show_result = 1;
-                    setModal({ type: 'exam', mode: 'edit', data });
-                }} style={{ scale: '0.9' }}>
-                    ⚙️ Pengaturan
-                </Button>
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <Button variant="outline" onClick={() => {
+                        const data = { ...e };
+                        if (data.show_result === undefined || data.show_result === null) data.show_result = 1;
+                        setModal({ type: 'exam', mode: 'edit', data });
+                    }} style={{ scale: '0.9' }}>
+                        ⚙️ Pengaturan
+                    </Button>
+                    <Button variant="outline" onClick={() => handleDeleteExam(e.id, e.title)} style={{ scale: '0.9', color: '#ff4d4f', borderColor: '#ff4d4f' }}>
+                        🗑️ Hapus
+                    </Button>
+                </div>
             )
         }
     ];

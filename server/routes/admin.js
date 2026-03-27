@@ -386,6 +386,14 @@ router.patch('/exams/:id/settings', authenticateAdmin, (req, res) => {
     );
 });
 
+router.delete('/exams/:id', authenticateAdmin, (req, res) => {
+    db.run('DELETE FROM exams WHERE id=?', [req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        logAudit(req.admin.username, 'DELETE_EXAM', 'exams', req.params.id, null);
+        res.json({ success: true, message: 'Sesi ujian berhasil dihapus.' });
+    });
+});
+
 // ---- LIVE MONITORING ----
 router.get('/live-monitoring', authenticateAdmin, (req, res) => {
     const { examId } = req.query;
