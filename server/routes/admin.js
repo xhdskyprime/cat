@@ -388,12 +388,15 @@ router.patch('/exams/:id/settings', authenticateAdmin, (req, res) => {
 
 router.delete('/exams/:id', authenticateAdmin, (req, res) => {
     const examId = req.params.id;
+    const errHandler = (err) => { 
+        if (err) console.error('Cascade Delete Error:', err.message); 
+    };
+
     db.serialize(() => {
-        // Hapus manual semua data terkait ujian untuk menghindari FOREIGN KEY error (Orphaned records)
-        db.run('DELETE FROM answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE exam_id=?)', [examId]);
-        db.run('DELETE FROM exam_sessions WHERE exam_id=?', [examId]);
-        db.run('DELETE FROM questions WHERE exam_id=?', [examId]);
-        db.run('UPDATE participants SET exam_id=NULL WHERE exam_id=?', [examId]); 
+        db.run('DELETE FROM answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE exam_id=?)', [examId], errHandler);
+        db.run('DELETE FROM exam_sessions WHERE exam_id=?', [examId], errHandler);
+        db.run('DELETE FROM questions WHERE exam_id=?', [examId], errHandler);
+        db.run('UPDATE participants SET exam_id=NULL WHERE exam_id=?', [examId], errHandler); 
 
         db.run('DELETE FROM exams WHERE id=?', [examId], function (err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -402,6 +405,7 @@ router.delete('/exams/:id', authenticateAdmin, (req, res) => {
         });
     });
 });
+
 
 
 // ---- LIVE MONITORING ----
