@@ -169,8 +169,16 @@ export default function SoalTab({ setModal }) {
                             <p style={{ lineHeight: 1.5, fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{q.content}</p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', marginTop: '1rem' }}>
                                 {(typeof q.options === 'string' ? JSON.parse(q.options || '[]') : (q.options || [])).map(opt => (
-                                    <div key={opt.id} style={{ background: theme.surfaceLight, padding: '0.5rem', borderRadius: '8px', fontSize: '0.8rem', border: opt.score > 0 ? `1px solid ${theme.success}80` : 'none' }}>
-                                        <strong>{opt.id}.</strong> {opt.text} <span style={{ color: theme.success, fontWeight: 700 }}>({opt.score})</span>
+                                    <div key={opt.id} style={{ 
+                                        background: opt.score > 0 ? `${theme.success}15` : theme.surfaceLight, 
+                                        padding: '0.5rem', 
+                                        borderRadius: '8px', 
+                                        fontSize: '0.8rem', 
+                                        border: opt.score > 0 ? `1px solid ${theme.success}` : `1px solid ${theme.border}50`,
+                                        position: 'relative'
+                                    }}>
+                                        <strong>{opt.id}.</strong> {opt.text} 
+                                        {opt.score > 0 && <span style={{ color: theme.success, fontWeight: 700, marginLeft: '0.5rem' }}>✓</span>}
                                     </div>
                                 ))}
                             </div>

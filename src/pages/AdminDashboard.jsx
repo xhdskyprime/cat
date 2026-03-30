@@ -536,22 +536,6 @@ function AdminDashboard() {
                                                     {categories.map(c => <option key={c.id} value={c.id}>{c.id} - {c.name}</option>)}
                                                 </select>
                                             </div>
-                                            <div style={{ flex: 1 }}>
-                                                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.5rem', fontWeight: 600 }}>PRESET SKOR</label>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <Button variant="outline" style={{ flex: 1, fontSize: '0.7rem' }} onClick={() => {
-                                                        const options = [...(modal.data?.options || [])];
-                                                        options.forEach((o, idx) => o.score = idx + 1);
-                                                        setModal({ ...modal, data: { ...modal.data, options } });
-                                                    }}>TKP (1-5)</Button>
-                                                    <Button variant="outline" style={{ flex: 1, fontSize: '0.7rem' }} onClick={() => {
-                                                        const options = [...(modal.data?.options || [])];
-                                                        options.forEach(o => o.score = 0);
-                                                        if (options[0]) options[0].score = 5;
-                                                        setModal({ ...modal, data: { ...modal.data, options } });
-                                                    }}>TIU/TWK (A=5)</Button>
-                                                </div>
-                                            </div>
                                         </div>
 
                                         <div style={{ display: 'flex', gap: '1rem' }}>
@@ -591,24 +575,39 @@ function AdminDashboard() {
                                             <textarea placeholder="Ketik soal di sini..." value={modal.data?.content || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, content: e.target.value } })} style={{ background: theme.surfaceLight, border: `1px solid ${theme.border}`, padding: '1rem', color: theme.text, borderRadius: '12px', minHeight: '120px', width: '100%', fontSize: '0.95rem', lineHeight: 1.5, fontFamily: 'inherit' }} />
                                         </div>
                                         <div>
-                                            <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '1rem', fontWeight: 600 }}>PILIHAN JAWABAN & BOBOT NILAI</label>
+                                            <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '1rem', fontWeight: 600 }}>PILIHAN JAWABAN (Pilih 1 Jawaban Benar)</label>
                                             <div style={{ display: 'grid', gap: '0.75rem' }}>
                                                 {(modal.data?.options || []).map((opt, i) => (
                                                     <div key={opt.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                                        <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.surfaceLight, borderRadius: '10px', fontSize: '0.9rem', fontWeight: 800, color: theme.primary }}>{opt.id}</div>
+                                                        <div 
+                                                            onClick={() => {
+                                                                const options = (modal.data?.options || []).map(o => ({ ...o, score: o.id === opt.id ? 1 : 0 }));
+                                                                setModal({ ...modal, data: { ...modal.data, options } });
+                                                            }}
+                                                            style={{ 
+                                                                width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                                background: opt.score > 0 ? theme.success : theme.surfaceLight, 
+                                                                borderRadius: '10px', fontSize: '0.9rem', fontWeight: 800, 
+                                                                color: opt.score > 0 ? 'white' : theme.primary,
+                                                                cursor: 'pointer', transition: 'all 0.2s', border: `1px solid ${opt.score > 0 ? theme.success : theme.border}`
+                                                            }}>
+                                                            {opt.id}
+                                                        </div>
                                                         <Input placeholder={`Teks Pilihan ${opt.id}`} value={opt.text} onChange={e => {
                                                             const options = [...(modal.data?.options || [])];
                                                             options[i] = { ...options[i], text: e.target.value };
                                                             setModal({ ...modal, data: { ...modal.data, options } });
                                                         }} />
-                                                        <div style={{ position: 'relative', width: 100 }}>
-                                                            <Input type="number" placeholder="Poin" value={opt.score} onChange={e => {
-                                                                const options = [...(modal.data?.options || [])];
-                                                                options[i] = { ...options[i], score: Number(e.target.value) };
+                                                        <Button 
+                                                            variant={opt.score > 0 ? 'success' : 'outline'}
+                                                            onClick={() => {
+                                                                const options = (modal.data?.options || []).map(o => ({ ...o, score: o.id === opt.id ? 1 : 0 }));
                                                                 setModal({ ...modal, data: { ...modal.data, options } });
-                                                            }} />
-                                                            <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.65rem', color: theme.textMuted }}>PTS</span>
-                                                        </div>
+                                                            }}
+                                                            style={{ fontSize: '0.7rem', minWidth: '90px' }}
+                                                        >
+                                                            {opt.score > 0 ? '✓ Benar' : 'Salah'}
+                                                        </Button>
                                                     </div>
                                                 ))}
                                             </div>

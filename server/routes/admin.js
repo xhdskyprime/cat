@@ -172,7 +172,7 @@ router.put('/participants/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
     const { nama, nik, nomor_peserta, nomorPeserta, is_active, isActive, exam_id } = req.body;
     const finalNomorPeserta = nomor_peserta || nomorPeserta;
-    const finalActive = is_active !== undefined ? (is_active ? 1 : 0) : (isActive !== undefined ? (isActive ? 1 : 0) : 1);
+    const finalActive = is_active !== undefined ? (is_active === true || is_active === "true") : (isActive !== undefined ? (isActive === true || isActive === "true") : true);
     db.run('UPDATE participants SET nama = ?, nik = ?, nomor_peserta = ?, is_active = ?, exam_id = ? WHERE id = ?',
         [nama, nik, finalNomorPeserta, finalActive, exam_id || null, id],
         function (err) {
@@ -338,7 +338,7 @@ router.post('/exams', authenticateAdmin, (req, res) => {
     if (!title || !token) return res.status(400).json({ error: 'Nama ujian dan token wajib diisi.' });
 
     const newId = crypto.randomUUID();
-    const show_result = req.body.show_result !== undefined ? (req.body.show_result ? 1 : 0) : 1;
+    const show_result = req.body.show_result !== undefined ? (req.body.show_result === true || req.body.show_result === "true") : true;
     
     db.run('INSERT INTO exams (id, title, description, duration_minutes, token, config, show_result) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [newId, title, description || '', duration_minutes || durationMinutes || 100, token.toUpperCase(), typeof config === 'string' ? config : JSON.stringify(config || {}), show_result],
@@ -355,8 +355,8 @@ router.put('/exams/:id', authenticateAdmin, (req, res) => {
     const { title, description, duration_minutes, durationMinutes, token, config, is_active, isActive, show_result, showResult } = req.body;
     const finalToken = (token || '').toUpperCase();
     const finalDuration = duration_minutes || durationMinutes || 100;
-    const finalActive = is_active !== undefined ? (is_active ? 1 : 0) : (isActive !== undefined ? (isActive ? 1 : 0) : 1);
-    const finalShowResult = show_result !== undefined ? (show_result ? 1 : 0) : (showResult !== undefined ? (showResult ? 1 : 0) : 1);
+    const finalActive = is_active !== undefined ? (is_active === true || is_active === "true") : (isActive !== undefined ? (isActive === true || isActive === "true") : true);
+    const finalShowResult = show_result !== undefined ? (show_result === true || show_result === "true") : (showResult !== undefined ? (showResult === true || showResult === "true") : true);
     const finalConfig = typeof config === 'string' ? config : JSON.stringify(config || {});
 
     db.run('UPDATE exams SET title = ?, description = ?, duration_minutes = ?, token = ?, config = ?, is_active = ?, show_result = ? WHERE id = ?',
@@ -475,7 +475,7 @@ router.get('/question-stats', authenticateAdmin, (req, res) => {
         SELECT q.id, q.category, q.content, q.options,
                COUNT(DISTINCT s.id) as total_sessions,
                SUM(CASE WHEN a.selected_option_id IS NOT NULL THEN 1 ELSE 0 END) as answered_count,
-               SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
+               SUM(CASE WHEN a.is_correct = true THEN 1 ELSE 0 END) as correct_count
         FROM questions q
         LEFT JOIN answers a ON a.question_id = q.id
         LEFT JOIN exam_sessions s ON a.session_id = s.id
@@ -661,7 +661,7 @@ router.post('/sessions/:sessionId/add-time', authenticateAdmin, (req, res) => {
 });
 
 // ---- IMPORT/EXPORT EXCEL ----
-router.post('/import-participants', authenticateAdmin, upload.single('file'), (req, res) => {
+router.post('/import-participants', authenticateAdmin, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Tidak ada file.' });
     try {
         const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
@@ -669,27 +669,28 @@ router.post('/import-participants', authenticateAdmin, upload.single('file'), (r
         const dataRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }).slice(1).filter(r => r.length >= 3 && r[0] && r[1]);
         if (dataRows.length === 0) return res.status(400).json({ error: 'Data kosong.' });
 
-        db.serialize(() => {
-            db.run('BEGIN');
-            const stmt = db.prepare('INSERT INTO participants (id, nik, nomor_peserta, nama, exam_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (nik) DO NOTHING');
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
             let imported = 0;
-            dataRows.forEach(row => {
+            const query = 'INSERT INTO participants (id, nik, nomor_peserta, nama, exam_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (nik) DO NOTHING';
+            
+            for (const row of dataRows) {
                 const rawExamId = String(row[3] || '').trim();
                 const examId = rawExamId === '-' || rawExamId === '' ? (req.body.exam_id || null) : rawExamId;
-
-                const result = stmt.run(crypto.randomUUID(), String(row[1]).trim(), String(row[2]).trim(), String(row[0]).trim(), examId, '123456');
-                if (result) imported++;
-            });
-            stmt.finalize();
-            db.run('COMMIT', (err) => {
-                if (err) {
-                    console.error('Transaction failed:', err);
-                    return res.status(500).json({ error: 'Gagal menyimpan data import.' });
-                }
-                logAudit(req.admin.username, 'IMPORT_PARTICIPANTS', 'participants', 'bulk', { count: imported });
-                res.json({ success: true, imported });
-            });
-        });
+                const res = await client.query(query, [crypto.randomUUID(), String(row[1]).trim(), String(row[2]).trim(), String(row[0]).trim(), examId, '123456']);
+                if (res.rowCount > 0) imported++;
+            }
+            
+            await client.query('COMMIT');
+            logAudit(req.admin.username, 'IMPORT_PARTICIPANTS', 'participants', 'bulk', { count: imported });
+            res.json({ success: true, imported });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        } finally {
+            client.release();
+        }
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -705,58 +706,56 @@ router.post('/import-questions', authenticateAdmin, upload.single('file'), (req,
             });
         })
         : new Promise((resolve, reject) => {
-            db.get('SELECT id FROM exams WHERE is_active = 1 LIMIT 1', [], (err, exam) => {
+            db.get('SELECT id FROM exams WHERE is_active = true LIMIT 1', [], (err, exam) => {
                 if (err || !exam) reject(new Error('Tidak ada ujian aktif.'));
                 else resolve(exam);
             });
-        });
-
-    getExam.then(exam => {
+        });    getExam.then(async (exam) => {
+        const client = await db.pool.connect();
         try {
             const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const dataRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }).slice(1).filter(r => r.length >= 3 && r[0] && r[1]);
 
-            db.serialize(() => {
-                db.run('BEGIN');
-                const stmt = db.prepare('INSERT INTO questions (id, exam_id, category, content, options) VALUES ($1, $2, $3, $4, $5)');
-                let imported = 0;
-                dataRows.forEach(row => {
-                    const category = String(row[0]).trim().toUpperCase();
-                    const optLabels = ['A', 'B', 'C', 'D', 'E'];
-                    const correctLabel = String(row[7] || '').trim().toUpperCase();
-                    const options = optLabels.map((id, i) => {
-                        const text = String(row[2 + i] || '').trim();
-                        if (!text) return null;
-                        let score = 0;
-                        if (correctLabel && correctLabel === id) score = Number(row[8]) || 5;
-                        else if (!correctLabel) score = Number(row[8 + i]) || 0;
-                        return { id, text, score };
-                    }).filter(Boolean);
-                    if (options.length >= 2) {
-                        stmt.run(crypto.randomUUID(), exam.id, category, String(row[1]).trim(), JSON.stringify(options));
-                        imported++;
-                    }
-                });
-                stmt.finalize();
-                db.run('COMMIT', (err) => {
-                    if (err) {
-                        console.error('Transaction failed:', err);
-                        return res.status(500).json({ error: 'Gagal menyimpan data kategori.' });
-                    }
-                    logAudit(req.admin.username, 'IMPORT_QUESTIONS', 'questions', 'bulk', { count: imported, exam_id: exam.id });
-                    res.json({ success: true, imported });
-                });
-            });
-        } catch (err) { res.status(500).json({ error: err.message }); }
-    }).catch(err => {
-        res.status(400).json({ error: err.message });
-    });
+            await client.query('BEGIN');
+            const query = 'INSERT INTO questions (id, exam_id, category, content, options) VALUES ($1, $2, $3, $4, $5)';
+            let imported = 0;
+
+            for (const row of dataRows) {
+                const category = String(row[0]).trim().toUpperCase();
+                const optLabels = ['A', 'B', 'C', 'D', 'E'];
+                const correctLabel = String(row[7] || '').trim().toUpperCase();
+                const options = optLabels.map((id, i) => {
+                    const text = String(row[2 + i] || '').trim();
+                    if (!text) return null;
+                    let score = 0;
+                    if (correctLabel && correctLabel === id) score = Number(row[8]) || 1;
+                    else if (!correctLabel) score = Number(row[8 + i]) || 0;
+                    return { id, text, score };
+                }).filter(Boolean);
+
+                if (options.length >= 2) {
+                    await client.query(query, [crypto.randomUUID(), exam.id, category, String(row[1]).trim(), JSON.stringify(options)]);
+                    imported++;
+                }
+            }
+
+            await client.query('COMMIT');
+            logAudit(req.admin.username, 'IMPORT_QUESTIONS', 'questions', 'bulk', { count: imported, exam_id: exam.id });
+            res.json({ success: true, imported });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error('Import failed:', err);
+            res.status(500).json({ error: 'Gagal menyimpan data import.' });
+        } finally {
+            client.release();
+        }
+    }).catch(e => res.status(400).json({ error: e.message }));
 });
 
 
 router.get('/template-participants', authenticateAdmin, (req, res) => {
-    db.all('SELECT id, title FROM exams WHERE is_active = 1', [], (err, exams) => {
+    db.all('SELECT id, title FROM exams WHERE is_active = true', [], (err, exams) => {
         const wb = XLSX.utils.book_new();
 
         // Sheet 1: Main Data
@@ -787,18 +786,17 @@ router.get('/template-questions', authenticateAdmin, (req, res) => {
         const header = [['Kategori', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Opsi E', 'Benar (A/B/C/D/E)', 'Poin (Bila Benar/TKP)']];
 
         const dataRows = rows.map(r => {
-            const options = JSON.parse(r.options || '[]');
+            const options = typeof r.options === 'string' ? JSON.parse(r.options || '[]') : (r.options || []);
             const row = [r.category, r.content];
             // Fill A-E
             for (let i = 0; i < 5; i++) row.push(options[i]?.text || '');
 
             // Determine correct column/score
-            // Check if it's a fixed score (TKP) or single right answer
             const maxScore = Math.max(...options.map(o => o.score || 0));
             const bestOpt = options.find(o => o.score === maxScore);
 
             row.push(bestOpt?.id || 'A'); // Answer key
-            row.push(maxScore || 5);      // Poin
+            row.push(maxScore || 1);      // Poin
             return row;
         });
 
