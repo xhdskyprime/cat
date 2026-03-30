@@ -191,7 +191,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
     const { participantId } = req.user;
     const { sessionId, isSuspended, fsViolations, tabViolations } = req.body;
 
-    db.get('SELECT * FROM exam_sessions WHERE id = ? AND participant_id = ?', [sessionId, participantId], (err, session) => {
+    db.get('SELECT * FROM exam_sessions WHERE id::text = $1 AND participant_id::text = $2', [sessionId, participantId], (err, session) => {
         if (err || !session || session.status === 'finished') return res.status(403).json({ error: 'Sesi tidak valid.' });
 
         // ALWAYS update violations if provided
@@ -232,7 +232,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
 router.post('/exam/answer', authenticate, (req, res) => {
     const { participantId } = req.user;
     const { sessionId, questionId, selectedOptionId, isDoubt } = req.body;
-    db.get('SELECT * FROM exam_sessions WHERE id = ? AND participant_id = ?', [sessionId, participantId], (err, session) => {
+    db.get('SELECT * FROM exam_sessions WHERE id::text = $1 AND participant_id::text = $2', [sessionId, participantId], (err, session) => {
         if (err || !session || session.status === 'finished') return res.status(403).json({ error: 'Akses ditolak.' });
         db.get('SELECT options FROM questions WHERE id = $1', [questionId], (err, q) => {
             if (err || !q) return res.status(500).json({ error: 'Soal tidak ditemukan.' });
@@ -249,7 +249,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
 
                     // Background scoring to keep Admin Monitor Live (No blocking the participant)
                     calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed }) => {
-                        db.run('UPDATE exam_sessions SET final_score_total = ?, category_scores = ?, is_passed = ? WHERE id = ?',
+                        db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4',
                             [totalScore, JSON.stringify(detailedScores), isPassed, sessionId],
                             () => {
                                 // Emit update with FULL score data
@@ -275,7 +275,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
 router.post('/exam/submit', authenticate, (req, res) => {
     const { participantId } = req.user;
     const { sessionId } = req.body;
-    db.get('SELECT * FROM exam_sessions WHERE id = ? AND participant_id = ?', [sessionId, participantId], (err, session) => {
+    db.get('SELECT * FROM exam_sessions WHERE id::text = $1 AND participant_id::text = $2', [sessionId, participantId], (err, session) => {
         if (err || !session) return res.status(403).json({ error: 'Akses ditolak.' });
         db.get('SELECT title, show_result FROM exams WHERE id = $1', [session.exam_id], (errExam, exam) => {
             if (errExam || !exam) return res.status(500).json({ error: 'Sesi ujian tidak valid.' });
