@@ -208,7 +208,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
 
         if (isSuspended) {
             // PAUSING: Store current remaining seconds
-            db.run('UPDATE exam_sessions SET is_suspended = true, remaining_seconds_at_pause = $1 WHERE id = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = $1 WHERE id = $2',
                 [currentRemaining, sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal pause.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -219,7 +219,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
             const storedRemaining = session.remaining_seconds_at_pause || currentRemaining;
             const newEndTime = new Date(now.getTime() + (storedRemaining * 1000));
 
-            db.run('UPDATE exam_sessions SET is_suspended = false, end_time = $1 WHERE id = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = 0, end_time = $1 WHERE id = $2',
                 [newEndTime.toISOString(), sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal resume.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -242,7 +242,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
             const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? true : false;
             db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT(session_id, question_id) DO UPDATE SET selected_option_id = excluded.selected_option_id, is_correct = excluded.is_correct, is_doubt = excluded.is_doubt, updated_at = CURRENT_TIMESTAMP`,
-                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, isDoubt ? true : false], function (err) {
+                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect ? 1 : 0, isDoubt ? true : false], function (err) {
                     if (err) return res.status(500).json({ error: 'Save failed.' });
 
                     const io = req.app.get('io');
