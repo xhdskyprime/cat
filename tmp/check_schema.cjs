@@ -1,13 +1,31 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const dbPath = path.resolve(__dirname, 'server', 'cat.db');
-const db = new sqlite3.Database(dbPath);
+const db = require('./server/db');
 
-db.all("PRAGMA table_info(exam_sessions)", (err, rows) => {
-    if (err) {
-        console.error(err);
-        process.exit(1);
+async function checkIds() {
+  console.log('Checking ID formats in database...');
+  try {
+    const queries = [
+      { name: 'Questions IDs (Sample)', sql: 'SELECT id, category FROM questions LIMIT 5' },
+      { name: 'Exam Sessions (Sample)', sql: 'SELECT id, participant_id, exam_id FROM exam_sessions LIMIT 5' },
+      { name: 'Answers (Sample)', sql: 'SELECT id, session_id, question_id FROM answers LIMIT 5' }
+    ];
+    for (const q of queries) {
+      console.log(`\n--- ${q.name} ---`);
+      await new Promise((resolve) => {
+        db.all(q.sql, [], (err, rows) => {
+          if (err) {
+            console.error(`Error checking ${q.name}: ${err.message}`);
+          } else {
+            console.table(rows);
+          }
+          resolve();
+        });
+      });
     }
-    console.log(JSON.stringify(rows, null, 2));
-    db.close();
-});
+    process.exit(0);
+  } catch (err) {
+    console.error('Check failed:', err);
+    process.exit(1);
+  }
+}
+
+checkIds();
