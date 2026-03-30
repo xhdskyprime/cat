@@ -285,7 +285,7 @@ router.post('/questions', authenticateAdmin, (req, res) => {
                 res.json({ success: true, id: newId, message: 'Soal berhasil ditambahkan.' });
             }
         );
-    }).catch(e => res.status(400).json({ error: e.message }));
+    }).catch(e => res.status(400).json({ error: 'Gagal: ' + e.message + ' Silakan buat dan aktifkan Sesi Ujian terlebih dahulu.' }));
 });
 
 router.put('/questions/:id', authenticateAdmin, (req, res) => {
