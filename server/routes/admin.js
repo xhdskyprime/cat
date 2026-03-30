@@ -217,11 +217,11 @@ router.patch('/participants/:id/toggle-active', authenticateAdmin, (req, res) =>
     const { id } = req.params;
     db.get('SELECT is_active FROM participants WHERE id = ?', [id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Peserta tidak ditemukan.' });
-        const newStatus = row.is_active === 1 ? 0 : 1;
+        const newStatus = row.is_active === true ? false : true;
         db.run('UPDATE participants SET is_active = ? WHERE id = ?', [newStatus, id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             logAudit(req.admin.username, 'TOGGLE_PARTICIPANT_STATUS', 'participants', id, { status: newStatus });
-            res.json({ success: true, is_active: newStatus, message: newStatus === 1 ? 'Peserta diaktifkan.' : 'Peserta dinonaktifkan.' });
+            res.json({ success: true, is_active: newStatus, message: newStatus === true ? 'Peserta diaktifkan.' : 'Peserta dinonaktifkan.' });
         });
     });
 });
@@ -269,7 +269,7 @@ router.post('/questions', authenticateAdmin, (req, res) => {
     const targetExamId = exam_id || examId;
     const getExamId = targetExamId ? Promise.resolve(targetExamId)
         : new Promise((resolve, reject) => {
-            db.get('SELECT id FROM exams WHERE is_active = 1 LIMIT 1', [], (err, row) => {
+            db.get('SELECT id FROM exams WHERE is_active = true LIMIT 1', [], (err, row) => {
                 if (err || !row) reject(new Error('Tidak ada ujian aktif.'));
                 else resolve(row.id);
             });
