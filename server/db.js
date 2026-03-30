@@ -41,7 +41,10 @@ const db = {
     const postgresSql = convertParameters(sql);
     pool.query(postgresSql, params)
       .then(res => cb(null, res.rows[0]))
-      .catch(err => cb(err));
+      .catch(err => {
+        console.error('[DB ERROR] ', sql, params, err);
+        cb(err);
+      });
   },
 
   // db.all(sql, params, cb) -> Fetch all rows
@@ -53,7 +56,10 @@ const db = {
     const postgresSql = convertParameters(sql);
     pool.query(postgresSql, params)
       .then(res => cb(null, res.rows))
-      .catch(err => cb(err));
+      .catch(err => {
+        console.error('[DB ERROR] ', sql, params, err);
+        cb(err);
+      });
   },
 
   // db.run(sql, params, cb) -> Execute command (no rows)
@@ -72,6 +78,7 @@ const db = {
         if (cb) cb.call({ lastID: null, changes: res.rowCount }, null);
       })
       .catch(err => {
+        console.error('[DB ERROR] ', sql, params, err);
         if (cb) cb(err);
       });
   },
