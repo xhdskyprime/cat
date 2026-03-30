@@ -248,7 +248,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
                     const io = req.app.get('io');
 
                     // Background scoring to keep Admin Monitor Live (No blocking the participant)
-                    calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed }) => {
+                    calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, answeredCount }) => {
                         db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4',
                             [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId],
                             () => {
@@ -260,6 +260,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
                                     selectedOptionId,
                                     isDoubt,
                                     score: totalScore,
+                                    answered_count: answeredCount,
                                     detailedScores
                                 });
                             }
@@ -285,13 +286,14 @@ router.post('/exam/submit', authenticate, (req, res) => {
                     return res.json({ success: true, resultAvailable: false, exam: { id: session.exam_id, title: exam.title } });
                 }
                 return calculateSessionScore(session.id, session.exam_id)
-                    .then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
+                    .then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode, answeredCount }) => {
                         res.json({
                             success: true,
                             resultAvailable: true,
                             exam: { id: session.exam_id, title: exam.title },
                             scores: {
                                 total: totalScore,
+                                answered_count: answeredCount,
                                 isPassed: !!isPassed,
                                 passingGrades: pgMap,
                                 scoreMode,
@@ -302,7 +304,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
                     .catch(e => res.status(500).json({ error: e.message }));
             }
 
-            calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
+            calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode, answeredCount }) => {
                 db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId], (err) => {
                     if (err) return res.status(500).json({ error: 'Submit failed.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update', { type: 'SESSION_FINISHED', participantId });
@@ -315,6 +317,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
                         exam: { id: session.exam_id, title: exam.title },
                         scores: {
                             total: totalScore,
+                            answered_count: answeredCount,
                             isPassed: !!isPassed,
                             passingGrades: pgMap,
                             scoreMode,

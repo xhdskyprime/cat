@@ -170,7 +170,7 @@ const calculateSessionScore = (sessionId, examId) => {
                 records.forEach(ans => {
                     const cat = ans.category;
                     const options = typeof ans.options === 'string' ? JSON.parse(ans.options || '[]') : (ans.options || []);
-                    const chosen = options.find(o => o.id === ans.selected_option_id);
+                    const chosen = options.find(o => String(o.id) === String(ans.selected_option_id));
 
                     const rule = catRuleMap[cat] || { full_score: 100 };
                     const totalQuestions = questionCounts[cat] || 1;
@@ -180,6 +180,9 @@ const calculateSessionScore = (sessionId, examId) => {
                         const maxPtsInQuestion = Math.max(...options.map(o => Number(o.score) || 0), 1);
                         const calculatedPoints = (Number(chosen.score) / maxPtsInQuestion) * weightPerQuestion;
                         detailedScores[cat] += calculatedPoints;
+                        console.log(`[ScoreDebug] Cat: ${cat}, Answer: ${ans.selected_option_id}, MatchFound: Yes, Score: ${chosen.score}, Pts: ${calculatedPoints}`);
+                    } else {
+                        console.log(`[ScoreDebug] Cat: ${cat}, Answer: ${ans.selected_option_id}, MatchFound: NO, OptionsID: ${options.map(o => o.id).join(',')}`);
                     }
                 });
 
@@ -191,7 +194,7 @@ const calculateSessionScore = (sessionId, examId) => {
                 Object.keys(detailedScores).forEach(cat => {
                     if (detailedScores[cat] < (pgMap[cat] || 0)) isPassed = false;
                 });
-                resolve({ totalScore, detailedScores, isPassed, pgMap, scoreMode });
+                resolve({ totalScore, detailedScores, isPassed, pgMap, scoreMode, answeredCount: records.length });
             }
         })().catch((err) => {
             console.error('[Score] CRITICAL ERROR:', err);

@@ -198,7 +198,7 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
                             ...session,
                             final_score_total: data.score,
                             category_scores: data.detailedScores || {},
-                            answered_count: Number(session.answered_count || 0) + 1
+                            answered_count: data.answered_count !== undefined ? data.answered_count : (Number(session.answered_count || 0) + 1)
                         };
                     }
                     return session;
