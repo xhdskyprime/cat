@@ -50,7 +50,7 @@ router.post('/auth/login', loginLimiter, (req, res) => {
     const finalNomorPeserta = nomor_peserta || nomorPeserta;
     if (!nik || !finalNomorPeserta || !token) return res.status(400).json({ error: 'Data login tidak lengkap' });
 
-    db.get('SELECT id, title, duration_minutes, schedule_start, schedule_end, show_result FROM exams WHERE token = $1 AND is_active = 1', [token], (err, exam) => {
+    db.get('SELECT id, title, duration_minutes, schedule_start, schedule_end, show_result FROM exams WHERE token = $1 AND is_active = true', [token], (err, exam) => {
         if (err || !exam) return res.status(401).json({ error: 'PIN / Token Ujian tidak valid.' });
 
         const now = new Date();
@@ -61,7 +61,7 @@ router.post('/auth/login', loginLimiter, (req, res) => {
 
         db.get('SELECT id, nama, is_active, exam_id FROM participants WHERE nik = $1 AND nomor_peserta = $2', [nik, finalNomorPeserta], (err, participant) => {
             if (err || !participant) return res.status(401).json({ error: 'Identitas tidak ditemukan.' });
-            if (participant.is_active === 0) return res.status(403).json({ error: 'Akses ditolak.' });
+            if (participant.is_active === false) return res.status(403).json({ error: 'Akses ditolak.' });
             if (participant.exam_id && participant.exam_id !== exam.id) return res.status(403).json({ error: 'Tidak dijadwalkan untuk sesi ini.' });
 
             const authToken = jwt.sign({ participantId: participant.id, nama: participant.nama, examId: exam.id, duration: exam.duration_minutes }, JWT_SECRET, { expiresIn: '6h' });
@@ -208,7 +208,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
 
         if (isSuspended) {
             // PAUSING: Store current remaining seconds
-            db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = $1 WHERE id = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = true, remaining_seconds_at_pause = $1 WHERE id = $2',
                 [currentRemaining, sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal pause.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -219,7 +219,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
             const storedRemaining = session.remaining_seconds_at_pause || currentRemaining;
             const newEndTime = new Date(now.getTime() + (storedRemaining * 1000));
 
-            db.run('UPDATE exam_sessions SET is_suspended = 0, end_time = $1 WHERE id = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = false, end_time = $1 WHERE id = $2',
                 [newEndTime.toISOString(), sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal resume.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -236,13 +236,13 @@ router.post('/exam/answer', authenticate, (req, res) => {
         if (err || !session || session.status === 'finished') return res.status(403).json({ error: 'Akses ditolak.' });
         db.get('SELECT options FROM questions WHERE id = $1', [questionId], (err, q) => {
             if (err || !q) return res.status(500).json({ error: 'Soal tidak ditemukan.' });
-            const opts = JSON.parse(q.options || '[]');
+            const opts = typeof q.options === 'string' ? JSON.parse(q.options || '[]') : (q.options || []);
             const maxScore = Math.max(...opts.map(o => o.score || 0), 1);
             const chosen = opts.find(o => o.id === selectedOptionId);
-            const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? 1 : 0;
+            const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? true : false;
             db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT(session_id, question_id) DO UPDATE SET selected_option_id = excluded.selected_option_id, is_correct = excluded.is_correct, is_doubt = excluded.is_doubt, updated_at = CURRENT_TIMESTAMP`,
-                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, isDoubt ? 1 : 0], function (err) {
+                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, isDoubt ? true : false], function (err) {
                     if (err) return res.status(500).json({ error: 'Save failed.' });
 
                     const io = req.app.get('io');

@@ -256,7 +256,10 @@ router.get('/participant-history/:id', authenticateAdmin, (req, res) => {
 router.get('/questions', authenticateAdmin, (req, res) => {
     db.all('SELECT * FROM questions ORDER BY category, created_at ASC', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        const formatted = rows.map(r => ({ ...r, options: JSON.parse(r.options || '[]') }));
+        const formatted = rows.map(r => ({ 
+            ...r, 
+            options: typeof r.options === 'string' ? JSON.parse(r.options || '[]') : (r.options || []) 
+        }));
         res.json(formatted);
     });
 });
@@ -429,7 +432,7 @@ router.get('/live-monitoring', authenticateAdmin, (req, res) => {
             let totalQuestions = row.db_total_questions;
             if (row.exam_config) {
                 try {
-                    const config = JSON.parse(row.exam_config);
+                    const config = typeof row.exam_config === 'string' ? JSON.parse(row.exam_config) : (row.exam_config || {});
                     // Filter out keys that are not category counts (like 'score_mode', 'total_pass', etc.)
                     const nonCategoryKeys = ['score_mode', 'total_pass', 'total_full'];
                     totalQuestions = Object.entries(config)
@@ -482,7 +485,7 @@ router.get('/question-stats', authenticateAdmin, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows.map(q => ({
             ...q,
-            options: JSON.parse(q.options || '[]'),
+            options: typeof q.options === 'string' ? JSON.parse(q.options || '[]') : (q.options || []),
             correct_rate: q.answered_count > 0 ? (q.correct_count / q.answered_count) * 100 : 0
         })));
     });
@@ -537,7 +540,10 @@ router.get('/question-details/:questionId', authenticateAdmin, (req, res) => {
         ORDER BY p.nama ASC
     `, [questionId], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows.map(r => ({ ...r, question_options: JSON.parse(r.question_options || '[]') })));
+        res.json(rows.map(r => ({ 
+            ...r, 
+            question_options: typeof r.question_options === 'string' ? JSON.parse(r.question_options || '[]') : (r.question_options || []) 
+        })));
     });
 });
 

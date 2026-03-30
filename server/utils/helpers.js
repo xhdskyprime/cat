@@ -94,7 +94,7 @@ const calculateSessionScore = (sessionId, examId) => {
             });
             const exam = await getCachedExam(examId);
             if (!exam) return reject(new Error('Gagal memuat konfigurasi ujian.'));
-            const config = JSON.parse(exam.config || '{}');
+            const config = typeof exam.config === 'string' ? JSON.parse(exam.config || '{}') : (exam.config || {});
 
             // Get counts (Cached by examId)
             let questionCounts = cache.questionCounts.get(examId);
@@ -126,7 +126,7 @@ const calculateSessionScore = (sessionId, examId) => {
 
             const detailedScores = {};
             let totalScore = 0;
-            let isPassed = 1;
+            let isPassed = true;
             const scoreMode = config.score_mode || 'category';
 
             Object.keys(questionCounts).forEach(cat => detailedScores[cat] = 0);
@@ -138,7 +138,7 @@ const calculateSessionScore = (sessionId, examId) => {
                 const weightPerQuestion = totalFullScore / totalQuestionsInSession;
 
                 records.forEach(ans => {
-                    const options = JSON.parse(ans.options);
+                    const options = typeof ans.options === 'string' ? JSON.parse(ans.options || '[]') : (ans.options || []);
                     const chosen = options.find(o => o.id === ans.selected_option_id);
                     if (chosen) {
                         const maxPtsInQuestion = Math.max(...options.map(o => Number(o.score) || 0), 1);
@@ -152,12 +152,12 @@ const calculateSessionScore = (sessionId, examId) => {
                     totalScore += detailedScores[cat];
                 });
                 totalScore = Math.round(totalScore * 100) / 100;
-                isPassed = totalScore >= totalPassGrade ? 1 : 0;
+                isPassed = totalScore >= totalPassGrade ? true : false;
                 resolve({ totalScore, detailedScores, isPassed, pgMap: { TOTAL: totalPassGrade }, scoreMode });
             } else {
                 records.forEach(ans => {
                     const cat = ans.category;
-                    const options = JSON.parse(ans.options);
+                    const options = typeof ans.options === 'string' ? JSON.parse(ans.options || '[]') : (ans.options || []);
                     const chosen = options.find(o => o.id === ans.selected_option_id);
 
                     const rule = catRuleMap[cat] || { full_score: 100 };
@@ -177,7 +177,7 @@ const calculateSessionScore = (sessionId, examId) => {
                 });
                 totalScore = Math.round(totalScore * 100) / 100;
                 Object.keys(detailedScores).forEach(cat => {
-                    if (detailedScores[cat] < (pgMap[cat] || 0)) isPassed = 0;
+                    if (detailedScores[cat] < (pgMap[cat] || 0)) isPassed = false;
                 });
                 resolve({ totalScore, detailedScores, isPassed, pgMap, scoreMode });
             }
@@ -230,7 +230,7 @@ const reconstructQuestions = (sessionId, examId) => {
                         question: q.content,
                         image_url: q.image_url,
                         audio_url: q.audio_url,
-                        options: deterministicShuffle(JSON.parse(q.options), sessionId + q.id)
+                        options: deterministicShuffle(typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []), sessionId + q.id)
                     }));
 
                     resolve(formattedQuestions);
