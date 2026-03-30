@@ -51,6 +51,11 @@ export default function MonitoringTab({
     // Filter sessions based on search term
     const filteredSessions = useMemo(() => {
         const sorted = [...scopedLiveSessions].sort((a, b) => (Number(b.final_score_total) || 0) - (Number(a.final_score_total) || 0));
+        
+        console.log('[LiveMonitoring] Filtered sessions count:', sorted.length);
+        if (sorted.length > 0) {
+            console.log('[LiveMonitoring] Top session score:', sorted[0].final_score_total);
+        }
 
         if (!searchTerm.trim()) return sorted;
 

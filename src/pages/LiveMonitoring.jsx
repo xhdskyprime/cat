@@ -265,31 +265,14 @@ function LiveMonitoringPage() {
 
                 {/* Main Content Area */}
                 <div className="animate-fade-in">
-                    {(() => {
-                        const sessionsToRender = (liveSessions || [])
-                            .filter(s => s.exam_id === selectedExamId || !selectedExamId)
-                            .filter(s => {
-                                const search = searchTerm.toLowerCase();
-                                return (s.nama || '').toLowerCase().includes(search) ||
-                                    (s.nik || '').toLowerCase().includes(search) ||
-                                    (s.nomor_peserta || '').toLowerCase().includes(search);
-                            });
-
-                        console.log('[LiveMonitoring] Rendering sessions count:', sessionsToRender.length);
-                        if (sessionsToRender.length > 0) {
-                            console.log('[LiveMonitoring] First session score:', sessionsToRender[0].final_score_total);
-                        }
-                        return (
-                            <MonitoringTab
-                                setModal={setModal}
-                                examId={selectedExamId || undefined}
-                                handleShowSessionReview={handleShowSessionReview}
-                                handlePause={handlePause}
-                                handleResume={handleResume}
-                                handleAddTime={handleAddTime}
-                            />
-                        );
-                    })()}
+                    <MonitoringTab
+                        setModal={setModal}
+                        examId={selectedExamId || undefined}
+                        handleShowSessionReview={handleShowSessionReview}
+                        handlePause={handlePause}
+                        handleResume={handleResume}
+                        handleAddTime={handleAddTime}
+                    />
                 </div>
             </div>
 
