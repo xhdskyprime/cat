@@ -1,4 +1,4 @@
-const db = require('./server/db');
+const db = require('../server/db');
 
 async function checkIds() {
   console.log('Checking ID formats in database...');
