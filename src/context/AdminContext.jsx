@@ -195,7 +195,7 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
                         return {
                             ...session,
                             final_score_total: data.score,
-                            category_scores: JSON.stringify(data.detailedScores || {}),
+                            category_scores: data.detailedScores || {},
                             answered_count: Number(session.answered_count || 0) + 1
                         };
                     }

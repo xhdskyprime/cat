@@ -95,7 +95,7 @@ module.exports = (io) => {
                     if (session && !session.is_suspended) {
                         const now = new Date();
                         const currentRemaining = Math.max(0, Math.floor((new Date(session.end_time) - now) / 1000));
-                        db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = $1 WHERE id = $2',
+                        db.run('UPDATE exam_sessions SET is_suspended = true, remaining_seconds_at_pause = $1 WHERE id = $2',
                             [currentRemaining, session.id], () => {
                                 io.to('admin_dashboard').emit('admin_update');
                                 console.log(`[Socket] Auto-paused session ${session.id} for participant ${socket.participantId} on disconnect`);

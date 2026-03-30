@@ -433,7 +433,6 @@ router.get('/live-monitoring', authenticateAdmin, (req, res) => {
             if (row.exam_config) {
                 try {
                     const config = typeof row.exam_config === 'string' ? JSON.parse(row.exam_config) : (row.exam_config || {});
-                    // Filter out keys that are not category counts (like 'score_mode', 'total_pass', etc.)
                     const nonCategoryKeys = ['score_mode', 'total_pass', 'total_full'];
                     totalQuestions = Object.entries(config)
                         .filter(([key]) => !nonCategoryKeys.includes(key))
@@ -443,7 +442,11 @@ router.get('/live-monitoring', authenticateAdmin, (req, res) => {
                         }, 0);
                 } catch (_e) { void _e; }
             }
-            return { ...row, total_questions: totalQuestions || row.db_total_questions };
+            return { 
+                ...row, 
+                total_questions: totalQuestions || row.db_total_questions,
+                category_scores: typeof row.category_scores === 'string' ? JSON.parse(row.category_scores || '{}') : (row.category_scores || {})
+            };
         });
         res.json({ sessions: processedRows, serverNow: new Date().toISOString() });
     });
@@ -466,7 +469,11 @@ router.get('/export-results', authenticateAdmin, (req, res) => {
         ORDER BY s.final_score_total DESC
     `, [new Date().toISOString()], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        const processed = rows.map(r => ({
+            ...r,
+            category_scores: typeof r.category_scores === 'string' ? JSON.parse(r.category_scores || '{}') : (r.category_scores || {})
+        }));
+        res.json(processed);
     });
 });
 
