@@ -156,6 +156,7 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
             };
             axios.get(`${API}/categories`, headers).then(res => setCategories(res.data)).catch(onAuthFail);
             axios.get(`${API}/settings`, headers).then(res => setSettings(res.data)).catch(onAuthFail);
+            axios.get(`${API}/appearance-templates`, headers).then(res => setTemplates(res.data)).catch(onAuthFail);
         }
     }, [API, adminHeaders]);
 

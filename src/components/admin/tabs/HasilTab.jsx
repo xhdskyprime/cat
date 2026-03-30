@@ -42,7 +42,7 @@ export default function HasilTab({ handleShowSessionReview }) {
 
         // Prepare data for Excel
         const data = filteredResults.map((r, i) => {
-            const scoresObj = r.category_scores ? JSON.parse(r.category_scores) : {};
+            const scoresObj = typeof r.category_scores === 'string' ? JSON.parse(r.category_scores || '{}') : (r.category_scores || {});
             const item = {
                 'Rank': i + 1,
                 'Nama Peserta': r.nama,
@@ -112,7 +112,7 @@ export default function HasilTab({ handleShowSessionReview }) {
             render: (r) => (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                     {r.category_scores ? (
-                        Object.entries(JSON.parse(r.category_scores)).map(([cat, score]) => (
+                        Object.entries(typeof r.category_scores === 'string' ? JSON.parse(r.category_scores || '{}') : (r.category_scores || {})).map(([cat, score]) => (
                             <span key={cat} style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: theme.surfaceLight, borderRadius: '4px', border: `1px solid ${theme.border}` }}>
                                 {cat}: <strong>{score}</strong>
                             </span>
