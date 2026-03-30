@@ -151,7 +151,7 @@ router.post('/exam/start', authenticate, (req, res) => {
 
                 if (!session.is_suspended && timeRemaining <= 0) {
                     return calculateSessionScore(session.id, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
-                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, session.id]);
+                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, session.id]);
                         if (!exam.show_result) {
                             return res.json({ success: true, isFinished: true, resultAvailable: false, exam: { id: examId, title: exam.title } });
                         }
@@ -250,7 +250,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
                     // Background scoring to keep Admin Monitor Live (No blocking the participant)
                     calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed }) => {
                         db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4',
-                            [totalScore, JSON.stringify(detailedScores), isPassed, sessionId],
+                            [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId],
                             () => {
                                 // Emit update with FULL score data
                                 io.to('admin_dashboard').emit('dashboard_update', {
@@ -303,7 +303,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
             }
 
             calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
-                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, sessionId], (err) => {
+                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId], (err) => {
                     if (err) return res.status(500).json({ error: 'Submit failed.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update', { type: 'SESSION_FINISHED', participantId });
                     if (!exam.show_result) {

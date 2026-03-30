@@ -16,6 +16,10 @@ async function checkConstraints() {
       {
         name: 'Answers Table Columns',
         sql: "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'answers'"
+      },
+      {
+        name: 'Exam Sessions Table Columns',
+        sql: "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'exam_sessions'"
       }
     ];
     for (const q of queries) {

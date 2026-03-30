@@ -18,7 +18,13 @@ pool.on('error', (err) => {
 
 // Helper for converting SQLite parameters (?) to PostgreSQL parameters ($1, $2, ...)
 function convertParameters(query) {
+  // Find the highest existing parameter index like $1, $2...
+  const matches = query.match(/\$\d+/g);
   let index = 1;
+  if (matches) {
+    const highest = Math.max(...matches.map(m => parseInt(m.substring(1))));
+    index = highest + 1;
+  }
   return query.replace(/\?/g, () => `$${index++}`);
 }
 

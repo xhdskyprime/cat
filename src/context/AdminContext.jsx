@@ -190,6 +190,7 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
         });
 
         s.on('dashboard_update', (data) => {
+            console.log('[SocketDebug] Received dashboard_update:', data);
             if (data.type === 'ANSWER_UPDATE') {
                 setLiveSessions(prev => (prev || []).map(session => {
                     if (session.participant_id === data.participantId) {

@@ -89,12 +89,14 @@ const calculateSessionScore = (sessionId, examId) => {
                     SELECT q.category, a.selected_option_id, q.options 
                     FROM answers a
                     JOIN questions q ON a.question_id = q.id 
-                    WHERE a.session_id::text = $1
+                    WHERE a.session_id::text = $1::text
                 `, [sessionId], (err, rows) => err ? rej(err) : res(rows));
             });
+            console.log(`[ScoreDebug] sessionId: ${sessionId}, records count: ${records.length}`);
             const exam = await getCachedExam(examId);
             if (!exam) return reject(new Error('Gagal memuat konfigurasi ujian.'));
             const config = typeof exam.config === 'string' ? JSON.parse(exam.config || '{}') : (exam.config || {});
+            console.log(`[ScoreDebug] examId: ${examId}, scoreMode: ${config.score_mode}`);
 
             // Get counts (Cached by examId)
             let questionCounts = cache.questionCounts.get(examId);
@@ -128,6 +130,16 @@ const calculateSessionScore = (sessionId, examId) => {
             let totalScore = 0;
             let isPassed = true;
             const scoreMode = config.score_mode || 'category';
+
+            // Initialize scores for all possible categories to 0
+            categoriesRows.forEach(c => {
+                detailedScores[c.id] = 0;
+            });
+            
+            // Safety: Ensure all categories in questionCounts are also initialized
+            Object.keys(questionCounts || {}).forEach(cat => {
+                if (detailedScores[cat] === undefined) detailedScores[cat] = 0;
+            });
 
             Object.keys(questionCounts).forEach(cat => detailedScores[cat] = 0);
 
