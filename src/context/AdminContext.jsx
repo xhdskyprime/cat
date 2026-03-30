@@ -113,6 +113,10 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
                 const res = await axios.get(`${API}/exams`, h);
                 setExams(res.data);
             }
+            if (target === 'master') {
+                const res = await axios.get(`${API}/categories`, h);
+                setCategories(res.data);
+            }
             if (target === 'settings' || target === 'pengaturan') {
                 const [resSettings, resTemplates] = await Promise.all([
                     axios.get(`${API}/settings`, h),
