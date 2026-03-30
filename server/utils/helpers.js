@@ -89,7 +89,7 @@ const calculateSessionScore = (sessionId, examId) => {
                     SELECT q.category, a.selected_option_id, q.options 
                     FROM answers a
                     JOIN questions q ON a.question_id = q.id 
-                    WHERE a.session_id = $1
+                    WHERE a.session_id::text = $1
                 `, [sessionId], (err, rows) => err ? rej(err) : res(rows));
             });
             const exam = await getCachedExam(examId);
@@ -100,7 +100,7 @@ const calculateSessionScore = (sessionId, examId) => {
             let questionCounts = cache.questionCounts.get(examId);
             if (!questionCounts || (Date.now() - cache.lastUpdate > 60000)) {
                 const counts = await new Promise((res, rej) => {
-                    db.all('SELECT category, COUNT(*) as count FROM questions WHERE exam_id = $1 GROUP BY category', [examId], (err, rows) => err ? rej(err) : res(rows));
+                    db.all('SELECT category, COUNT(*) as count FROM questions WHERE exam_id::text = $1 GROUP BY category', [examId], (err, rows) => err ? rej(err) : res(rows));
                 });
                 questionCounts = {};
                 counts.forEach(c => {

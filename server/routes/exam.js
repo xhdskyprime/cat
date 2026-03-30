@@ -110,10 +110,10 @@ router.get('/exam/status', authenticate, (req, res) => {
 
 router.post('/exam/start', authenticate, (req, res) => {
     const { participantId, examId, duration } = req.user;
-    db.get('SELECT title, show_result FROM exams WHERE id = $1', [examId], (errExam, exam) => {
+    db.get('SELECT title, show_result FROM exams WHERE id::text = $1', [examId], (errExam, exam) => {
         if (errExam || !exam) return res.status(500).json({ error: 'Sesi ujian tidak valid.' });
 
-        db.get('SELECT * FROM exam_sessions WHERE participant_id = $1 AND exam_id = $2', [participantId, examId], (err, session) => {
+        db.get('SELECT * FROM exam_sessions WHERE participant_id::text = $1 AND exam_id::text = $2', [participantId, examId], (err, session) => {
             if (err) return res.status(500).json({ error: 'Database error.' });
             if (session) {
                 const now = new Date();
@@ -151,7 +151,7 @@ router.post('/exam/start', authenticate, (req, res) => {
 
                 if (!session.is_suspended && timeRemaining <= 0) {
                     return calculateSessionScore(session.id, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
-                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, session.id]);
+                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, session.id]);
                         if (!exam.show_result) {
                             return res.json({ success: true, isFinished: true, resultAvailable: false, exam: { id: examId, title: exam.title } });
                         }
@@ -198,7 +198,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
         if (fsViolations !== undefined || tabViolations !== undefined) {
             const nextFsViolations = fsViolations ?? session.fs_violations ?? 0;
             const nextTabViolations = tabViolations ?? session.tab_violations ?? 0;
-            db.run('UPDATE exam_sessions SET fs_violations = $1, tab_violations = $2 WHERE id = $3',
+            db.run('UPDATE exam_sessions SET fs_violations = $1, tab_violations = $2 WHERE id::text = $3',
                 [nextFsViolations, nextTabViolations, sessionId]);
         }
 
@@ -208,7 +208,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
 
         if (isSuspended) {
             // PAUSING: Store current remaining seconds
-            db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = $1 WHERE id = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = $1 WHERE id::text = $2',
                 [currentRemaining, sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal pause.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -219,7 +219,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
             const storedRemaining = session.remaining_seconds_at_pause || currentRemaining;
             const newEndTime = new Date(now.getTime() + (storedRemaining * 1000));
 
-            db.run('UPDATE exam_sessions SET is_suspended = 0, end_time = $1 WHERE id = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = 0, end_time = $1 WHERE id::text = $2',
                 [newEndTime.toISOString(), sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal resume.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -234,7 +234,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
     const { sessionId, questionId, selectedOptionId, isDoubt } = req.body;
     db.get('SELECT * FROM exam_sessions WHERE id::text = $1 AND participant_id::text = $2', [sessionId, participantId], (err, session) => {
         if (err || !session || session.status === 'finished') return res.status(403).json({ error: 'Akses ditolak.' });
-        db.get('SELECT options FROM questions WHERE id = $1', [questionId], (err, q) => {
+        db.get('SELECT options FROM questions WHERE id::text = $1', [questionId], (err, q) => {
             if (err || !q) return res.status(500).json({ error: 'Soal tidak ditemukan.' });
             const opts = typeof q.options === 'string' ? JSON.parse(q.options || '[]') : (q.options || []);
             const maxScore = Math.max(...opts.map(o => o.score || 0), 1);
@@ -242,14 +242,14 @@ router.post('/exam/answer', authenticate, (req, res) => {
             const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? true : false;
             db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT(session_id, question_id) DO UPDATE SET selected_option_id = excluded.selected_option_id, is_correct = excluded.is_correct, is_doubt = excluded.is_doubt, updated_at = CURRENT_TIMESTAMP`,
-                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect ? 1 : 0, isDoubt ? true : false], function (err) {
+                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect ? 1 : 0, isDoubt ? 1 : 0], function (err) {
                     if (err) return res.status(500).json({ error: 'Save failed.' });
 
                     const io = req.app.get('io');
 
                     // Background scoring to keep Admin Monitor Live (No blocking the participant)
                     calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed }) => {
-                        db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4',
+                        db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4',
                             [totalScore, JSON.stringify(detailedScores), isPassed, sessionId],
                             () => {
                                 // Emit update with FULL score data
@@ -277,7 +277,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
     const { sessionId } = req.body;
     db.get('SELECT * FROM exam_sessions WHERE id::text = $1 AND participant_id::text = $2', [sessionId, participantId], (err, session) => {
         if (err || !session) return res.status(403).json({ error: 'Akses ditolak.' });
-        db.get('SELECT title, show_result FROM exams WHERE id = $1', [session.exam_id], (errExam, exam) => {
+        db.get('SELECT title, show_result FROM exams WHERE id::text = $1', [session.exam_id], (errExam, exam) => {
             if (errExam || !exam) return res.status(500).json({ error: 'Sesi ujian tidak valid.' });
 
             if (session.status === 'finished') {
@@ -303,7 +303,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
             }
 
             calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
-                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, sessionId], (err) => {
+                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, sessionId], (err) => {
                     if (err) return res.status(500).json({ error: 'Submit failed.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update', { type: 'SESSION_FINISHED', participantId });
                     if (!exam.show_result) {
@@ -331,8 +331,8 @@ router.get('/exam/time-sync/:sessionId', authenticate, (req, res) => {
     db.get(`
         SELECT s.end_time, s.status, s.is_suspended, s.remaining_seconds_at_pause, e.show_result
         FROM exam_sessions s
-        JOIN exams e ON s.exam_id = e.id
-        WHERE s.id = $1 AND s.participant_id = $2
+        JOIN exams e ON s.exam_id::text = e.id::text
+        WHERE s.id::text = $1 AND s.participant_id::text = $2
     `, [req.params.sessionId, req.user.participantId], (err, session) => {
         if (err || !session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
         const now = new Date();

@@ -409,7 +409,7 @@ router.delete('/exams/:id', authenticateAdmin, (req, res) => {
 // ---- LIVE MONITORING ----
 router.get('/live-monitoring', authenticateAdmin, (req, res) => {
     const { examId } = req.query;
-    const where = examId ? 'WHERE s.exam_id::text = ?' : '';
+    const where = examId ? 'WHERE s.exam_id::text = $1' : '';
     const params = examId ? [examId] : [];
     db.all(`
         SELECT 
@@ -420,8 +420,8 @@ router.get('/live-monitoring', authenticateAdmin, (req, res) => {
             p.id as participant_id, p.nik, p.nomor_peserta, p.nama,
             COALESCE(e.title, '-') as exam_title,
             e.config as exam_config,
-            (SELECT COUNT(*) FROM answers WHERE session_id = s.id AND selected_option_id IS NOT NULL) as answered_count,
-            (SELECT COUNT(*) FROM questions WHERE exam_id = s.exam_id) as db_total_questions
+            (SELECT COUNT(*) FROM answers WHERE session_id::text = s.id::text AND selected_option_id IS NOT NULL) as answered_count,
+            (SELECT COUNT(*) FROM questions WHERE exam_id::text = s.exam_id::text) as db_total_questions
         FROM exam_sessions s
         JOIN participants p ON s.participant_id = p.id
         LEFT JOIN exams e ON s.exam_id = e.id

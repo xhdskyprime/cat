@@ -417,9 +417,6 @@ export default function Exam() {
                                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#dc2626' }}>PELANGGARAN: {violationCount}/{maxViolation}</span>
                             </div>
                         )}
-                        <button onClick={toggleFullscreen} style={{ padding: '0.75rem', borderRadius: '12px', background: '#f1f5f9', color: '#475569', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}>
-                            <Maximize size={22} />
-                        </button>
                     </div>
                 </header>
 
