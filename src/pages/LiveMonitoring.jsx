@@ -313,20 +313,35 @@ function LiveMonitoringPage() {
                                             <span style={{ fontSize: '0.8rem', color: theme.textMuted }}>No. {idx + 1}</span>
                                         </div>
                                         <div style={{ fontWeight: 600, color: theme.text, marginBottom: '1rem', lineHeight: 1.5 }}>
-                                            {q.question_text}
+                                            {idx + 1}. {q.question_text}
                                         </div>
-                                        <div style={{
-                                            padding: '0.75rem 1rem',
-                                            borderRadius: '12px',
-                                            background: q.selected_option_id ? (theme.primary + '10') : (theme.danger + '10'),
-                                            border: `1px solid ${q.selected_option_id ? (theme.primary + '20') : (theme.danger + '20')}`,
-                                            fontSize: '0.9rem'
-                                        }}>
-                                            <span style={{ color: theme.textMuted, marginRight: '8px' }}>Pilihan:</span>
-                                            <span style={{ fontWeight: 700, color: q.selected_option_id ? theme.primary : theme.danger }}>
-                                                {q.selected_option_id || 'Tidak Ada Jawaban'}
-                                            </span>
+                                        <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem' }}>
+                                            {(q.question_options || []).map(opt => {
+                                                const isSelected = opt.id === q.selected_option_id;
+                                                const maxScore = Math.max(...(q.question_options || []).map(o => o.score || 0), 1);
+                                                const isRight = opt.score === maxScore && maxScore > 0;
+                                                
+                                                return (
+                                                    <div key={opt.id} style={{
+                                                        padding: '0.6rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem',
+                                                        background: isSelected ? (isRight ? theme.success + '15' : theme.danger + '15') : (isRight ? theme.success + '08' : 'transparent'),
+                                                        border: `1px solid ${isSelected ? (isRight ? theme.success : theme.danger) + '30' : (isRight ? theme.success + '30' : theme.border + '40')}`,
+                                                        color: isSelected ? (isRight ? theme.success : theme.danger) : (isRight ? theme.success : theme.textMuted),
+                                                        display: 'flex', gap: '0.5rem', alignItems: 'center'
+                                                    }}>
+                                                        <strong style={{ minWidth: '1.2rem' }}>{opt.id}.</strong>
+                                                        <span style={{ flex: 1 }}>{opt.text}</span>
+                                                        {isSelected && (isRight ? ' ✓' : ' ✗')}
+                                                        {!isSelected && isRight && q.selected_option_id && <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>(Benar)</span>}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
+                                        {!q.selected_option_id && (
+                                            <div style={{ padding: '0.75rem', borderRadius: '10px', background: theme.danger + '10', border: `1px solid ${theme.danger}20`, color: theme.danger, fontSize: '0.8rem', textAlign: 'center', fontWeight: 600 }}>
+                                                TIDAK DIJAWAB
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

@@ -502,12 +502,12 @@ router.get('/question-stats', authenticateAdmin, (req, res) => {
 // Participant Specific Detailed Review
 router.get('/sessions/:sessionId/review', authenticateAdmin, (req, res) => {
     const { sessionId } = req.params;
-    db.get('SELECT exam_id FROM exam_sessions WHERE id = ?', [sessionId], (err, session) => {
+    db.get('SELECT exam_id FROM exam_sessions WHERE id::text = $1', [sessionId], (err, session) => {
         if (err || !session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
 
         reconstructQuestions(sessionId, session.exam_id)
             .then(questions => {
-                db.all('SELECT question_id, selected_option_id, is_correct, updated_at FROM answers WHERE session_id = ?', [sessionId], (err, answers) => {
+                db.all('SELECT question_id, selected_option_id, is_correct, updated_at FROM answers WHERE session_id::text = $1', [sessionId], (err, answers) => {
                     if (err) return res.status(500).json({ error: err.message });
 
                     const answerMap = {};
