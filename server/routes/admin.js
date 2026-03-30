@@ -109,7 +109,7 @@ router.get('/categories', authenticateAdmin, (req, res) => {
 router.post('/categories', authenticateAdmin, (req, res) => {
     const { id, name, passing_grade, full_score, is_random, sort_order } = req.body;
     db.run('INSERT INTO categories (id, name, passing_grade, full_score, is_random, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-        [id.toUpperCase(), name, passing_grade || 0, full_score || 100, is_random === undefined ? 1 : is_random, sort_order || 0],
+        [id.toUpperCase(), name, passing_grade || 0, full_score || 100, is_random === undefined ? true : (is_random === true || is_random === "true"), sort_order || 0],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             logAudit(req.admin.username, 'CREATE_CATEGORY', 'categories', id, req.body);
@@ -194,13 +194,13 @@ router.delete('/participants/:id', authenticateAdmin, (req, res) => {
 
 router.post('/participants/:id/reset-session', authenticateAdmin, (req, res) => {
     const { id } = req.params;
-    db.all('SELECT id FROM exam_sessions WHERE participant_id = ?', [id], (err, sessions) => {
+    db.all('SELECT id::text as id FROM exam_sessions WHERE participant_id::text = ?', [id], (err, sessions) => {
         if (err) return res.status(500).json({ error: err.message });
         const sessionIds = sessions.map(s => s.id);
         const deleteAnswers = sessionIds.length > 0
             ? new Promise((resolve, reject) => {
                 const placeholders = sessionIds.map(() => '?').join(',');
-                db.run(`DELETE FROM answers WHERE session_id IN(${placeholders})`, sessionIds, (e) => e ? reject(e) : resolve());
+                db.run(`DELETE FROM answers WHERE session_id::text IN(${placeholders})`, sessionIds, (e) => e ? reject(e) : resolve());
             })
             : Promise.resolve();
         deleteAnswers.then(() => {
@@ -215,10 +215,10 @@ router.post('/participants/:id/reset-session', authenticateAdmin, (req, res) => 
 
 router.patch('/participants/:id/toggle-active', authenticateAdmin, (req, res) => {
     const { id } = req.params;
-    db.get('SELECT is_active FROM participants WHERE id = ?', [id], (err, row) => {
+    db.get('SELECT is_active FROM participants WHERE id::text = ?', [id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Peserta tidak ditemukan.' });
         const newStatus = row.is_active === true ? false : true;
-        db.run('UPDATE participants SET is_active = ? WHERE id = ?', [newStatus, id], function (err2) {
+        db.run('UPDATE participants SET is_active = ? WHERE id::text = ?', [newStatus, id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             logAudit(req.admin.username, 'TOGGLE_PARTICIPANT_STATUS', 'participants', id, { status: newStatus });
             res.json({ success: true, is_active: newStatus, message: newStatus === true ? 'Peserta diaktifkan.' : 'Peserta dinonaktifkan.' });
@@ -359,7 +359,7 @@ router.put('/exams/:id', authenticateAdmin, (req, res) => {
     const finalShowResult = show_result !== undefined ? (show_result === true || show_result === "true") : (showResult !== undefined ? (showResult === true || showResult === "true") : true);
     const finalConfig = typeof config === 'string' ? config : JSON.stringify(config || {});
 
-    db.run('UPDATE exams SET title = ?, description = ?, duration_minutes = ?, token = ?, config = ?, is_active = ?, show_result = ? WHERE id = ?',
+    db.run('UPDATE exams SET title = ?, description = ?, duration_minutes = ?, token = ?, config = ?, is_active = ?, show_result = ? WHERE id::text = ?',
         [title, description, finalDuration, finalToken, finalConfig, finalActive, finalShowResult, id],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -371,9 +371,10 @@ router.put('/exams/:id', authenticateAdmin, (req, res) => {
 
 router.patch('/exams/:id/settings', authenticateAdmin, (req, res) => {
     const { scheduleStart, scheduleEnd, showResult, show_result, allowReview, maxAttempts } = req.body;
-    const finalShowResult = show_result !== undefined ? (show_result ? 1 : 0) : (showResult !== undefined ? (showResult ? 1 : 0) : 1);
+    const finalShowResult = show_result !== undefined ? (show_result === true || show_result === "true" || show_result === 1) : (showResult !== undefined ? (showResult === true || showResult === "true" || showResult === 1) : true);
+    const finalAllowReview = allowReview === true || allowReview === "true" || allowReview === 1;
     db.run('UPDATE exams SET schedule_start=?, schedule_end=?, show_result=?, allow_review=?, max_attempts=? WHERE id=?',
-        [scheduleStart || null, scheduleEnd || null, finalShowResult, allowReview || 0, maxAttempts || 1, req.params.id],
+        [scheduleStart || null, scheduleEnd || null, finalShowResult, finalAllowReview, maxAttempts || 1, req.params.id],
         function (err) { if (err) return res.status(500).json({ error: err.message }); res.json({ success: true }); }
     );
 });
@@ -387,11 +388,11 @@ router.delete('/exams/:id', authenticateAdmin, (req, res) => {
     db.serialize(() => {
         // Hapus history sesi peserta (hanya data ujian peserta yang dihapus)
         db.run('BEGIN');
-        db.run('DELETE FROM answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE exam_id=$1)', [examId], errHandler);
-        db.run('DELETE FROM exam_sessions WHERE exam_id=$1', [examId], errHandler);
-        db.run('UPDATE participants SET exam_id=NULL WHERE exam_id=$1', [examId], errHandler); 
+        db.run('DELETE FROM answers WHERE session_id::text IN (SELECT id::text FROM exam_sessions WHERE exam_id::text=$1)', [examId], errHandler);
+        db.run('DELETE FROM exam_sessions WHERE exam_id::text=$1', [examId], errHandler);
+        db.run('UPDATE participants SET exam_id=NULL WHERE exam_id::text=$1', [examId], errHandler); 
 
-        db.run('DELETE FROM exams WHERE id=$1', [examId], function (err) {
+        db.run('DELETE FROM exams WHERE id::text=$1', [examId], function (err) {
             if (err) {
                 console.error("=== FATAL EXAM DELETE DB ERROR ===", err.message);
                 return res.status(500).json({ error: err.message });
@@ -408,7 +409,7 @@ router.delete('/exams/:id', authenticateAdmin, (req, res) => {
 // ---- LIVE MONITORING ----
 router.get('/live-monitoring', authenticateAdmin, (req, res) => {
     const { examId } = req.query;
-    const where = examId ? 'WHERE s.exam_id = ?' : '';
+    const where = examId ? 'WHERE s.exam_id::text = ?' : '';
     const params = examId ? [examId] : [];
     db.all(`
         SELECT 

@@ -47,13 +47,13 @@ module.exports = (io) => {
             connectedParticipants.set(participantId, socket.id);
             socket.join(`exam_${examId}`);
             if (sessionId) {
-                db.get('SELECT id FROM exam_sessions WHERE id = $1 AND participant_id = $2 AND exam_id = $3', [sessionId, participantId, examId], (err, row) => {
+                db.get('SELECT id FROM exam_sessions WHERE id::text = $1 AND participant_id::text = $2 AND exam_id::text = $3', [sessionId, participantId, examId], (err, row) => {
                     if (!err && row) socket.join(`exam_session_${sessionId}`);
                 });
             }
             socket.participantId = participantId;
 
-            db.run('UPDATE exam_sessions SET last_socket_id = $1 WHERE participant_id = $2 AND exam_id = $3', [socket.id, participantId, examId]);
+            db.run('UPDATE exam_sessions SET last_socket_id = $1 WHERE participant_id::text = $2 AND exam_id::text = $3', [socket.id, participantId, examId]);
             console.log(`[Socket] Participant ${participantId} joined`);
         });
 
@@ -90,7 +90,7 @@ module.exports = (io) => {
             if (socket.participantId && connectedParticipants.get(socket.participantId) === socket.id) {
                 // AUTO-PAUSE ON DISCONNECT
                 db.get(`SELECT id, end_time, is_suspended FROM exam_sessions 
-                        WHERE participant_id = $1 AND status = 'ongoing' 
+                        WHERE participant_id::text = $1 AND status = 'ongoing' 
                         ORDER BY start_time DESC LIMIT 1`, [socket.participantId], (err, session) => {
                     if (session && !session.is_suspended) {
                         const now = new Date();

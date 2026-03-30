@@ -152,7 +152,7 @@ const calculateSessionScore = (sessionId, examId) => {
                     totalScore += detailedScores[cat];
                 });
                 totalScore = Math.round(totalScore * 100) / 100;
-                isPassed = totalScore >= totalPassGrade ? true : false;
+                isPassed = totalScore >= totalPassGrade;
                 resolve({ totalScore, detailedScores, isPassed, pgMap: { TOTAL: totalPassGrade }, scoreMode });
             } else {
                 records.forEach(ans => {
@@ -191,7 +191,7 @@ const calculateSessionScore = (sessionId, examId) => {
 // Reconstruct exact questions given to a session
 const reconstructQuestions = (sessionId, examId) => {
     return new Promise((resolve, reject) => {
-        db.get('SELECT config FROM exams WHERE id = $1', [examId], (err, exam) => {
+        db.get('SELECT config FROM exams WHERE id::text = $1', [examId], (err, exam) => {
             if (err || !exam) return reject(new Error('Gagal memuat konfigurasi ujian.'));
             const config = JSON.parse(exam.config || '{}');
 
@@ -244,7 +244,7 @@ const reconstructQuestions = (sessionId, examId) => {
 const serveQuestions = (sessionId, timeRemainingSeconds, examId, isSuspended, res) => {
     reconstructQuestions(sessionId, examId)
         .then(formattedQuestions => {
-            db.all('SELECT question_id, selected_option_id, is_doubt FROM answers WHERE session_id = $1', [sessionId], (err, savedAnswers) => {
+            db.all('SELECT question_id, selected_option_id, is_doubt FROM answers WHERE session_id::text = $1', [sessionId], (err, savedAnswers) => {
                 if (err) return res.status(500).json({ error: 'Gagal memuat riwayat jawaban.' });
 
                 const safeQuestions = (formattedQuestions || []).map(q => ({
