@@ -111,13 +111,13 @@ app.use((err, req, res, next) => {
 // Background Worker: Auto-finalize expired sessions
 const autoFinalizeWorker = () => {
     const now = new Date().toISOString();
-    db.all("SELECT id, exam_id, participant_id FROM exam_sessions WHERE status = 'ongoing' AND is_suspended = 0 AND end_time < ?", [now], (err, sessions) => {
+    db.all("SELECT id, exam_id, participant_id FROM exam_sessions WHERE status = 'ongoing' AND is_suspended = 0 AND end_time < $1", [now], (err, sessions) => {
         if (err) return console.error('[Worker] Error fetching expired sessions:', err);
         if (sessions.length > 0) {
             console.log(`[Worker] Found ${sessions.length} expired sessions. Finalizing...`);
             sessions.forEach(session => {
                 calculateSessionScore(session.id, session.exam_id).then(({ totalScore, detailedScores, isPassed }) => {
-                    db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = ?, category_scores = ?, is_passed = ? WHERE id = ?`,
+                    db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4`,
                         [totalScore, JSON.stringify(detailedScores), isPassed, session.id],
                         (err) => {
                             if (err) console.error(`[Worker] Failed to finalize session ${session.id}:`, err);

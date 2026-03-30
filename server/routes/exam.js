@@ -37,7 +37,7 @@ router.get('/active-template', (req, res) => {
                 tagline: 'SAVE LIVES, SERVE BETTER!'
             });
         }
-        db.get('SELECT * FROM appearance_templates WHERE id = ?', [row.value], (err2, template) => {
+        db.get('SELECT * FROM appearance_templates WHERE id = $1', [row.value], (err2, template) => {
             if (err2 || !template) return res.status(404).json({ error: 'Template tidak ditemukan' });
             res.json(template);
         });
@@ -50,7 +50,7 @@ router.post('/auth/login', loginLimiter, (req, res) => {
     const finalNomorPeserta = nomor_peserta || nomorPeserta;
     if (!nik || !finalNomorPeserta || !token) return res.status(400).json({ error: 'Data login tidak lengkap' });
 
-    db.get('SELECT id, title, duration_minutes, schedule_start, schedule_end, show_result FROM exams WHERE token = ? AND is_active = 1', [token], (err, exam) => {
+    db.get('SELECT id, title, duration_minutes, schedule_start, schedule_end, show_result FROM exams WHERE token = $1 AND is_active = 1', [token], (err, exam) => {
         if (err || !exam) return res.status(401).json({ error: 'PIN / Token Ujian tidak valid.' });
 
         const now = new Date();
@@ -59,13 +59,13 @@ router.post('/auth/login', loginLimiter, (req, res) => {
         if (scheduleStart && now < scheduleStart) return res.status(403).json({ error: 'Ujian belum dibuka.' });
         if (scheduleEnd && now > scheduleEnd) return res.status(403).json({ error: 'Ujian sudah ditutup.' });
 
-        db.get('SELECT id, nama, is_active, exam_id FROM participants WHERE nik = ? AND nomor_peserta = ?', [nik, finalNomorPeserta], (err, participant) => {
+        db.get('SELECT id, nama, is_active, exam_id FROM participants WHERE nik = $1 AND nomor_peserta = $2', [nik, finalNomorPeserta], (err, participant) => {
             if (err || !participant) return res.status(401).json({ error: 'Identitas tidak ditemukan.' });
             if (participant.is_active === 0) return res.status(403).json({ error: 'Akses ditolak.' });
             if (participant.exam_id && participant.exam_id !== exam.id) return res.status(403).json({ error: 'Tidak dijadwalkan untuk sesi ini.' });
 
             const authToken = jwt.sign({ participantId: participant.id, nama: participant.nama, examId: exam.id, duration: exam.duration_minutes }, JWT_SECRET, { expiresIn: '6h' });
-            db.get('SELECT status FROM exam_sessions WHERE participant_id = ? AND exam_id = ?', [participant.id, exam.id], (errSess, sess) => {
+            db.get('SELECT status FROM exam_sessions WHERE participant_id = $1 AND exam_id = $2', [participant.id, exam.id], (errSess, sess) => {
                 const hasFinished = !!(sess && sess.status === 'finished');
                 const hasActiveSession = !!(sess && !hasFinished);
                 res.json({
@@ -91,7 +91,7 @@ router.post('/auth/login', loginLimiter, (req, res) => {
 // ---- EXAM OPERATIONS ----
 router.get('/exam/status', authenticate, (req, res) => {
     const { participantId, examId } = req.user;
-    db.get('SELECT id, status, is_suspended FROM exam_sessions WHERE participant_id = ? AND exam_id = ?', [participantId, examId], (err, session) => {
+    db.get('SELECT id, status, is_suspended FROM exam_sessions WHERE participant_id = $1 AND exam_id = $2', [participantId, examId], (err, session) => {
         if (err) return res.status(500).json({ error: 'Database error.' });
         const hasSession = !!session;
         const hasFinished = !!(session && session.status === 'finished');
@@ -110,10 +110,10 @@ router.get('/exam/status', authenticate, (req, res) => {
 
 router.post('/exam/start', authenticate, (req, res) => {
     const { participantId, examId, duration } = req.user;
-    db.get('SELECT title, show_result FROM exams WHERE id = ?', [examId], (errExam, exam) => {
+    db.get('SELECT title, show_result FROM exams WHERE id = $1', [examId], (errExam, exam) => {
         if (errExam || !exam) return res.status(500).json({ error: 'Sesi ujian tidak valid.' });
 
-        db.get('SELECT * FROM exam_sessions WHERE participant_id = ? AND exam_id = ?', [participantId, examId], (err, session) => {
+        db.get('SELECT * FROM exam_sessions WHERE participant_id = $1 AND exam_id = $2', [participantId, examId], (err, session) => {
             if (err) return res.status(500).json({ error: 'Database error.' });
             if (session) {
                 const now = new Date();
@@ -151,7 +151,7 @@ router.post('/exam/start', authenticate, (req, res) => {
 
                 if (!session.is_suspended && timeRemaining <= 0) {
                     return calculateSessionScore(session.id, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
-                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = ?, category_scores = ?, is_passed = ? WHERE id = ?`, [totalScore, JSON.stringify(detailedScores), isPassed, session.id]);
+                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, session.id]);
                         if (!exam.show_result) {
                             return res.json({ success: true, isFinished: true, resultAvailable: false, exam: { id: examId, title: exam.title } });
                         }
@@ -178,7 +178,7 @@ router.post('/exam/start', authenticate, (req, res) => {
             const now = new Date();
             const totalMinutes = Number(duration) || 90;
             const endTime = new Date(now.getTime() + totalMinutes * 60000);
-            db.run(`INSERT INTO exam_sessions (id, participant_id, exam_id, start_time, end_time) VALUES (?, ?, ?, ?, ?)`,
+            db.run(`INSERT INTO exam_sessions (id, participant_id, exam_id, start_time, end_time) VALUES ($1, $2, $3, $4, $5)`,
                 [newId, participantId, examId, now.toISOString(), endTime.toISOString()], function (err) {
                     if (err) return res.status(500).json({ error: 'Registrasi gagal.' });
                     serveQuestions(newId, totalMinutes * 60, examId, 0, res);
@@ -198,7 +198,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
         if (fsViolations !== undefined || tabViolations !== undefined) {
             const nextFsViolations = fsViolations ?? session.fs_violations ?? 0;
             const nextTabViolations = tabViolations ?? session.tab_violations ?? 0;
-            db.run('UPDATE exam_sessions SET fs_violations = ?, tab_violations = ? WHERE id = ?',
+            db.run('UPDATE exam_sessions SET fs_violations = $1, tab_violations = $2 WHERE id = $3',
                 [nextFsViolations, nextTabViolations, sessionId]);
         }
 
@@ -208,7 +208,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
 
         if (isSuspended) {
             // PAUSING: Store current remaining seconds
-            db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = ? WHERE id = ?',
+            db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = $1 WHERE id = $2',
                 [currentRemaining, sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal pause.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -219,7 +219,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
             const storedRemaining = session.remaining_seconds_at_pause || currentRemaining;
             const newEndTime = new Date(now.getTime() + (storedRemaining * 1000));
 
-            db.run('UPDATE exam_sessions SET is_suspended = 0, end_time = ? WHERE id = ?',
+            db.run('UPDATE exam_sessions SET is_suspended = 0, end_time = $1 WHERE id = $2',
                 [newEndTime.toISOString(), sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal resume.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -234,13 +234,13 @@ router.post('/exam/answer', authenticate, (req, res) => {
     const { sessionId, questionId, selectedOptionId, isDoubt } = req.body;
     db.get('SELECT * FROM exam_sessions WHERE id = ? AND participant_id = ?', [sessionId, participantId], (err, session) => {
         if (err || !session || session.status === 'finished') return res.status(403).json({ error: 'Akses ditolak.' });
-        db.get('SELECT options FROM questions WHERE id = ?', [questionId], (err, q) => {
+        db.get('SELECT options FROM questions WHERE id = $1', [questionId], (err, q) => {
             if (err || !q) return res.status(500).json({ error: 'Soal tidak ditemukan.' });
             const opts = JSON.parse(q.options || '[]');
             const maxScore = Math.max(...opts.map(o => o.score || 0), 1);
             const chosen = opts.find(o => o.id === selectedOptionId);
             const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? 1 : 0;
-            db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES (?, ?, ?, ?, ?, ?)
+            db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT(session_id, question_id) DO UPDATE SET selected_option_id = excluded.selected_option_id, is_correct = excluded.is_correct, is_doubt = excluded.is_doubt, updated_at = CURRENT_TIMESTAMP`,
                 [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, isDoubt ? 1 : 0], function (err) {
                     if (err) return res.status(500).json({ error: 'Save failed.' });
@@ -277,7 +277,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
     const { sessionId } = req.body;
     db.get('SELECT * FROM exam_sessions WHERE id = ? AND participant_id = ?', [sessionId, participantId], (err, session) => {
         if (err || !session) return res.status(403).json({ error: 'Akses ditolak.' });
-        db.get('SELECT title, show_result FROM exams WHERE id = ?', [session.exam_id], (errExam, exam) => {
+        db.get('SELECT title, show_result FROM exams WHERE id = $1', [session.exam_id], (errExam, exam) => {
             if (errExam || !exam) return res.status(500).json({ error: 'Sesi ujian tidak valid.' });
 
             if (session.status === 'finished') {
@@ -303,7 +303,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
             }
 
             calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
-                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = ?, category_scores = ?, is_passed = ? WHERE id = ?`, [totalScore, JSON.stringify(detailedScores), isPassed, sessionId], (err) => {
+                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4`, [totalScore, JSON.stringify(detailedScores), isPassed, sessionId], (err) => {
                     if (err) return res.status(500).json({ error: 'Submit failed.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update', { type: 'SESSION_FINISHED', participantId });
                     if (!exam.show_result) {
@@ -332,7 +332,7 @@ router.get('/exam/time-sync/:sessionId', authenticate, (req, res) => {
         SELECT s.end_time, s.status, s.is_suspended, s.remaining_seconds_at_pause, e.show_result
         FROM exam_sessions s
         JOIN exams e ON s.exam_id = e.id
-        WHERE s.id = ? AND s.participant_id = ?
+        WHERE s.id = $1 AND s.participant_id = $2
     `, [req.params.sessionId, req.user.participantId], (err, session) => {
         if (err || !session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
         const now = new Date();

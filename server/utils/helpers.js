@@ -38,7 +38,7 @@ const deterministicShuffle = (array, seed) => {
 
 // Log Audit Actions
 const logAudit = (adminId, action, targetType, targetId, details) => {
-    db.run('INSERT INTO audit_logs (id, admin_id, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?)',
+    db.run('INSERT INTO audit_logs (id, admin_id, action, target_type, target_id, details) VALUES ($1, $2, $3, $4, $5, $6)',
         [crypto.randomUUID(), adminId, action, targetType, targetId, JSON.stringify(details || {})]
     );
 };
@@ -72,7 +72,7 @@ const getCachedExam = (examId) => {
         if (cached && (Date.now() - cached.time < 30000)) {
             return resolve(cached.data);
         }
-        db.get('SELECT config FROM exams WHERE id = ?', [examId], (err, row) => {
+        db.get('SELECT config FROM exams WHERE id = $1', [examId], (err, row) => {
             if (!err && row) {
                 cache.exams.set(examId, { data: row, time: Date.now() });
             }
@@ -89,7 +89,7 @@ const calculateSessionScore = (sessionId, examId) => {
                     SELECT q.category, a.selected_option_id, q.options 
                     FROM answers a
                     JOIN questions q ON a.question_id = q.id 
-                    WHERE a.session_id = ?
+                    WHERE a.session_id = $1
                 `, [sessionId], (err, rows) => err ? rej(err) : res(rows));
             });
             const exam = await getCachedExam(examId);
@@ -100,7 +100,7 @@ const calculateSessionScore = (sessionId, examId) => {
             let questionCounts = cache.questionCounts.get(examId);
             if (!questionCounts || (Date.now() - cache.lastUpdate > 60000)) {
                 const counts = await new Promise((res, rej) => {
-                    db.all('SELECT category, COUNT(*) as count FROM questions WHERE exam_id = ? GROUP BY category', [examId], (err, rows) => err ? rej(err) : res(rows));
+                    db.all('SELECT category, COUNT(*) as count FROM questions WHERE exam_id = $1 GROUP BY category', [examId], (err, rows) => err ? rej(err) : res(rows));
                 });
                 questionCounts = {};
                 counts.forEach(c => {
@@ -191,7 +191,7 @@ const calculateSessionScore = (sessionId, examId) => {
 // Reconstruct exact questions given to a session
 const reconstructQuestions = (sessionId, examId) => {
     return new Promise((resolve, reject) => {
-        db.get('SELECT config FROM exams WHERE id = ?', [examId], (err, exam) => {
+        db.get('SELECT config FROM exams WHERE id = $1', [examId], (err, exam) => {
             if (err || !exam) return reject(new Error('Gagal memuat konfigurasi ujian.'));
             const config = JSON.parse(exam.config || '{}');
 
@@ -244,7 +244,7 @@ const reconstructQuestions = (sessionId, examId) => {
 const serveQuestions = (sessionId, timeRemainingSeconds, examId, isSuspended, res) => {
     reconstructQuestions(sessionId, examId)
         .then(formattedQuestions => {
-            db.all('SELECT question_id, selected_option_id, is_doubt FROM answers WHERE session_id = ?', [sessionId], (err, savedAnswers) => {
+            db.all('SELECT question_id, selected_option_id, is_doubt FROM answers WHERE session_id = $1', [sessionId], (err, savedAnswers) => {
                 if (err) return res.status(500).json({ error: 'Gagal memuat riwayat jawaban.' });
 
                 const safeQuestions = (formattedQuestions || []).map(q => ({

@@ -2,7 +2,7 @@
 
 -- 1. Tabel Master Peserta (Independen dari Supabase Auth, Admin yg register)
 CREATE TABLE public.participants (
-    id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     nik VARCHAR(16) UNIQUE NOT NULL,
     nomor_peserta VARCHAR(50) UNIQUE NOT NULL,
     nama VARCHAR(100) NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE public.participants (
 
 -- 2. Tabel Master Jadwal Ujian
 CREATE TABLE public.exams (
-    id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     duration_minutes INTEGER NOT NULL DEFAULT 90,
@@ -24,7 +24,7 @@ CREATE TABLE public.exams (
 
 -- 3. Tabel Bank Soal
 CREATE TABLE public.questions (
-    id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     exam_id UUID REFERENCES public.exams(id) ON DELETE CASCADE,
     category VARCHAR(10) NOT NULL, -- TWK, TIU, TKP
     content TEXT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE public.questions (
 
 -- 4. Tabel Sesi Ujian Aktif (Jantung Realtime / Anti-Cheat)
 CREATE TABLE public.exam_sessions (
-    id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     participant_id UUID REFERENCES public.participants(id) ON DELETE CASCADE,
     exam_id UUID REFERENCES public.exams(id) ON DELETE CASCADE,
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -52,7 +52,7 @@ CREATE TABLE public.exam_sessions (
 
 -- 5. Tabel Perekaman Jawaban (Autosave per klik)
 CREATE TABLE public.answers (
-    id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     session_id UUID REFERENCES public.exam_sessions(id) ON DELETE CASCADE,
     question_id UUID REFERENCES public.questions(id) ON DELETE CASCADE,
     selected_option_id VARCHAR(50),

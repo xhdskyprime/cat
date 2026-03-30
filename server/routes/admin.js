@@ -394,15 +394,17 @@ router.delete('/exams/:id', authenticateAdmin, (req, res) => {
 
     db.serialize(() => {
         // Hapus history sesi peserta (hanya data ujian peserta yang dihapus)
-        db.run('DELETE FROM answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE exam_id=?)', [examId], errHandler);
-        db.run('DELETE FROM exam_sessions WHERE exam_id=?', [examId], errHandler);
-        db.run('UPDATE participants SET exam_id=NULL WHERE exam_id=?', [examId], errHandler); 
+        db.run('BEGIN');
+        db.run('DELETE FROM answers WHERE session_id IN (SELECT id FROM exam_sessions WHERE exam_id=$1)', [examId], errHandler);
+        db.run('DELETE FROM exam_sessions WHERE exam_id=$1', [examId], errHandler);
+        db.run('UPDATE participants SET exam_id=NULL WHERE exam_id=$1', [examId], errHandler); 
 
-        db.run('DELETE FROM exams WHERE id=?', [examId], function (err) {
+        db.run('DELETE FROM exams WHERE id=$1', [examId], function (err) {
             if (err) {
                 console.error("=== FATAL EXAM DELETE DB ERROR ===", err.message);
                 return res.status(500).json({ error: err.message });
             }
+            db.run('COMMIT');
             logAudit(req.admin.username, 'DELETE_EXAM', 'exams', examId, null);
             res.json({ success: true, message: 'Sesi ujian beserta riwayatnya berhasil dihapus.' });
         });
@@ -579,7 +581,7 @@ router.get('/settings', authenticateAdmin, (req, res) => {
 });
 
 router.put('/settings', authenticateAdmin, (req, res) => {
-    const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)');
+    const stmt = db.prepare('INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP');
     Object.entries(req.body).forEach(([k, v]) => stmt.run(k, String(v)));
     stmt.finalize();
     logAudit(req.admin.username, 'UPDATE_SETTINGS', 'settings', 'all', req.body);
@@ -673,8 +675,8 @@ router.post('/import-participants', authenticateAdmin, upload.single('file'), (r
         if (dataRows.length === 0) return res.status(400).json({ error: 'Data kosong.' });
 
         db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-            const stmt = db.prepare('INSERT OR IGNORE INTO participants (id, nik, nomor_peserta, nama, exam_id, password_hash) VALUES (?, ?, ?, ?, ?, ?)');
+            db.run('BEGIN');
+            const stmt = db.prepare('INSERT INTO participants (id, nik, nomor_peserta, nama, exam_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (nik) DO NOTHING');
             let imported = 0;
             dataRows.forEach(row => {
                 const rawExamId = String(row[3] || '').trim();
@@ -721,8 +723,8 @@ router.post('/import-questions', authenticateAdmin, upload.single('file'), (req,
             const dataRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }).slice(1).filter(r => r.length >= 3 && r[0] && r[1]);
 
             db.serialize(() => {
-                db.run('BEGIN TRANSACTION');
-                const stmt = db.prepare('INSERT INTO questions (id, exam_id, category, content, options) VALUES (?, ?, ?, ?, ?)');
+                db.run('BEGIN');
+                const stmt = db.prepare('INSERT INTO questions (id, exam_id, category, content, options) VALUES ($1, $2, $3, $4, $5)');
                 let imported = 0;
                 dataRows.forEach(row => {
                     const category = String(row[0]).trim().toUpperCase();
