@@ -72,7 +72,7 @@ const getCachedExam = (examId) => {
         if (cached && (Date.now() - cached.time < 30000)) {
             return resolve(cached.data);
         }
-        db.get('SELECT config FROM exams WHERE id = $1', [examId], (err, row) => {
+        db.get('SELECT config FROM exams WHERE id::text = $1', [examId], (err, row) => {
             if (!err && row) {
                 cache.exams.set(examId, { data: row, time: Date.now() });
             }
@@ -141,7 +141,8 @@ const calculateSessionScore = (sessionId, examId) => {
                 if (detailedScores[cat] === undefined) detailedScores[cat] = 0;
             });
 
-            Object.keys(questionCounts).forEach(cat => detailedScores[cat] = 0);
+            // Remove redundant initialization that might overwrite safety logic
+            // Object.keys(questionCounts).forEach(cat => detailedScores[cat] = 0);
 
             if (scoreMode === 'total') {
                 const totalQuestionsInSession = Object.values(questionCounts).reduce((a, b) => a + b, 0) || 1;
@@ -151,11 +152,12 @@ const calculateSessionScore = (sessionId, examId) => {
 
                 records.forEach(ans => {
                     const options = typeof ans.options === 'string' ? JSON.parse(ans.options || '[]') : (ans.options || []);
-                    const chosen = options.find(o => o.id === ans.selected_option_id);
+                    const chosen = options.find(o => String(o.id) === String(ans.selected_option_id));
                     if (chosen) {
                         const maxPtsInQuestion = Math.max(...options.map(o => Number(o.score) || 0), 1);
                         const calculatedPoints = (Number(chosen.score) / maxPtsInQuestion) * weightPerQuestion;
                         detailedScores[ans.category] += calculatedPoints;
+                        console.log(`[ScoreDebug] TotalMode Cat: ${ans.category}, Answer: ${ans.selected_option_id}, Pts: ${calculatedPoints}`);
                     }
                 });
 
@@ -165,7 +167,7 @@ const calculateSessionScore = (sessionId, examId) => {
                 });
                 totalScore = Math.round(totalScore * 100) / 100;
                 isPassed = totalScore >= totalPassGrade;
-                resolve({ totalScore, detailedScores, isPassed, pgMap: { TOTAL: totalPassGrade }, scoreMode });
+                resolve({ totalScore, detailedScores, isPassed, pgMap: { TOTAL: totalPassGrade }, scoreMode, answeredCount: records.length });
             } else {
                 records.forEach(ans => {
                     const cat = ans.category;

@@ -37,8 +37,20 @@ router.get('/active-template', (req, res) => {
                 tagline: 'SAVE LIVES, SERVE BETTER!'
             });
         }
-        db.get('SELECT * FROM appearance_templates WHERE id = $1', [row.value], (err2, template) => {
-            if (err2 || !template) return res.status(404).json({ error: 'Template tidak ditemukan' });
+        db.get('SELECT * FROM appearance_templates WHERE id::text = $1', [row.value], (err2, template) => {
+            if (err2 || !template) {
+                // Return default if template not found to avoid 404
+                return res.json({
+                    id: 'medical',
+                    name: 'Kesehatan (BLVD Perawat)',
+                    primary_color: '#0d9488',
+                    secondary_color: '#f59e0b',
+                    illustration_url: '/nurse_v3.png',
+                    headline: 'Tenaga Kesehatan Hebat!',
+                    sub_headline: 'Portal seleksi <b>Tenaga Kesehatan BLUD.</b><br />Siapkan kompetensi terbaikmu.',
+                    tagline: 'SAVE LIVES, SERVE BETTER!'
+                });
+            }
             res.json(template);
         });
     });
