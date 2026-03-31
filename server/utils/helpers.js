@@ -218,7 +218,7 @@ const reconstructQuestions = (sessionId, examId) => {
                 const randomMap = {};
                 categories.forEach(c => randomMap[c.id] = c.is_random);
 
-                db.all('SELECT * FROM questions', [], (err, allQuestions) => {
+                db.all('SELECT * FROM questions WHERE exam_id::text = $1', [examId], (err, allQuestions) => {
                     if (err) return reject(new Error('Gagal memuat bank soal.'));
 
                     const grouped = {};
@@ -230,7 +230,7 @@ const reconstructQuestions = (sessionId, examId) => {
                     let finalQuestions = [];
                     Object.keys(grouped).forEach(cat => {
                         let catQuestions = grouped[cat];
-                        if (randomMap[cat] !== 0) {
+                        if (randomMap[cat] !== false && randomMap[cat] !== 0) {
                             catQuestions = deterministicShuffle([...catQuestions], sessionId + cat);
                         }
                         const catConfig = config[cat];

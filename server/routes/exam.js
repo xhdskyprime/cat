@@ -6,9 +6,39 @@ const db = require('../db');
 const { authenticate, loginLimiter, JWT_SECRET } = require('../middleware/auth');
 const { serveQuestions, calculateSessionScore } = require('../utils/helpers');
 
+// Debounce scoring: max 1 recalculation per session per 3 seconds
+const scoringTimers = new Map();
+const debouncedScore = (sessionId, examId, participantId, io) => {
+    if (scoringTimers.has(sessionId)) return; // Already scheduled
+    scoringTimers.set(sessionId, setTimeout(() => {
+        scoringTimers.delete(sessionId);
+        calculateSessionScore(sessionId, examId).then(({ totalScore, detailedScores, isPassed, answeredCount }) => {
+            db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4',
+                [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, sessionId],
+                () => {
+                    io.to('admin_dashboard').emit('dashboard_update', {
+                        type: 'ANSWER_UPDATE',
+                        participantId,
+                        score: totalScore,
+                        answered_count: answeredCount,
+                        detailedScores
+                    });
+                }
+            );
+        }).catch(console.error);
+    }, 3000));
+};
+
 // ---- HEALTH CHECK ----
 router.get('/health', (req, res) => {
-    res.json({ status: 'ok', time: new Date() });
+    const start = Date.now();
+    db.get('SELECT 1 as ok', [], (err, row) => {
+        const dbMs = Date.now() - start;
+        if (err || !row) {
+            return res.status(503).json({ status: 'error', db: false, error: err?.message || 'DB unreachable' });
+        }
+        res.json({ status: 'ok', time: new Date(), db: true, dbPingMs: dbMs, uptime: Math.floor(process.uptime()) });
+    });
 });
 
 // ---- PUBLIC SETTINGS ----
@@ -220,7 +250,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
 
         if (isSuspended) {
             // PAUSING: Store current remaining seconds
-            db.run('UPDATE exam_sessions SET is_suspended = 1, remaining_seconds_at_pause = $1 WHERE id::text = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = true, remaining_seconds_at_pause = $1 WHERE id::text = $2',
                 [currentRemaining, sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal pause.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -231,7 +261,7 @@ router.post('/exam/status/sync', authenticate, (req, res) => {
             const storedRemaining = session.remaining_seconds_at_pause || currentRemaining;
             const newEndTime = new Date(now.getTime() + (storedRemaining * 1000));
 
-            db.run('UPDATE exam_sessions SET is_suspended = 0, end_time = $1 WHERE id::text = $2',
+            db.run('UPDATE exam_sessions SET is_suspended = false, end_time = $1 WHERE id::text = $2',
                 [newEndTime.toISOString(), sessionId], function (err) {
                     if (err) return res.status(500).json({ error: 'Gagal resume.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update');
@@ -254,30 +284,11 @@ router.post('/exam/answer', authenticate, (req, res) => {
             const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? true : false;
             db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT(session_id, question_id) DO UPDATE SET selected_option_id = excluded.selected_option_id, is_correct = excluded.is_correct, is_doubt = excluded.is_doubt, updated_at = CURRENT_TIMESTAMP`,
-                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect ? 1 : 0, !!isDoubt], function (err) {
+                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, !!isDoubt], function (err) {
                     if (err) return res.status(500).json({ error: 'Save failed.' });
 
-                    const io = req.app.get('io');
-
-                    // Background scoring to keep Admin Monitor Live (No blocking the participant)
-                    calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, answeredCount }) => {
-                        db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4',
-                            [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, sessionId],
-                            () => {
-                                // Emit update with FULL score data
-                                io.to('admin_dashboard').emit('dashboard_update', {
-                                    type: 'ANSWER_UPDATE',
-                                    participantId,
-                                    questionId,
-                                    selectedOptionId,
-                                    isDoubt,
-                                    score: totalScore,
-                                    answered_count: answeredCount,
-                                    detailedScores
-                                });
-                            }
-                        );
-                    }).catch(console.error);
+                    // Debounced background scoring (max 1x per 3 detik per sesi)
+                    debouncedScore(sessionId, session.exam_id, participantId, req.app.get('io'));
 
                     res.json({ success: true });
                 });

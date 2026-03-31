@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+server/logs/
 
 node_modules
 dist
@@ -17,6 +18,13 @@ dist-ssr
 *.db-wal
 *.db-shm
 *.sqlite
+*.bak.js
+
+# Environment
+.env
+!.env.example
+server/.env
+!server/.env.example
 
 # Editor directories and files
 .vscode/*
@@ -29,3 +37,6 @@ dist-ssr
 *.sln
 *.sw?
 
+# Temp & Media
+tmp/
+*.mp4

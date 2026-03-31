@@ -6,9 +6,11 @@ const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:post
 
 const pool = new Pool({
   connectionString,
-  max: 20, // Concurrency limit
+  max: Number(process.env.DB_POOL_MAX) || 30,        // Cukup untuk 200 peserta (1 fork mode)
+  min: Number(process.env.DB_POOL_MIN) || 5,          // Keep 5 warm connections
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 15000,                            // Kill query yang jalan > 15 detik
 });
 
 pool.on('error', (err) => {
@@ -68,7 +70,10 @@ const db = {
       cb = params;
       params = [];
     }
-    const postgresSql = convertParameters(sql).replace('INSERT OR IGNORE', 'INSERT').replace('INSERT OR REPLACE', 'INSERT').replace('OR IGNORE', '');
+    const postgresSql = convertParameters(sql)
+      .replace(/INSERT\s+OR\s+IGNORE/gi, 'INSERT')
+      .replace(/INSERT\s+OR\s+REPLACE/gi, 'INSERT')
+      .replace(/\bOR\s+IGNORE\b/gi, '');
     
     // Note: SQL differences for INSERT OR IGNORE etc. need handling in code refactor.
     // For now, this is a basic shim.

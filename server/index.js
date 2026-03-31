@@ -18,20 +18,26 @@ const { calculateSessionScore } = require('./utils/helpers');
 const app = express();
 const server = http.createServer(app);
 
-const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://localhost:5176',
-    'http://localhost:4173', // vite preview
-];
+const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175',
+        'http://localhost:5176',
+        'http://localhost:4173', // vite preview
+    ];
 
 // Setup Socket.IO
 const io = new Server(server, {
     cors: {
         origin: allowedOrigins,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
-    }
+    },
+    pingInterval: 25000,      // Kurangi overhead ping (default 25s OK)
+    pingTimeout: 20000,       // Timeout sebelum disconnect
+    maxHttpBufferSize: 1e6,   // Max 1MB payload per message
+    transports: ['websocket', 'polling'], // Prefer websocket
 });
 
 const logsDir = path.resolve(__dirname, 'logs');
@@ -80,10 +86,19 @@ app.set('trust proxy', 1); // Trust first proxy (Nginx/Cloudflare) to fix expres
 // Global Middleware
 app.use(helmet());
 app.use(compression());
-app.use(morgan('dev')); // Gunakan 'dev' untuk logging yang lebih ringkas di console
+if (process.env.NODE_ENV !== 'production') {
+    app.use(morgan('dev'));
+}
 app.use(morgan('combined', { stream: accessLogStream }));
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+
+// Request timeout (30 detik untuk mencegah request menggantung)
+app.use((req, res, next) => {
+    req.setTimeout(30000);
+    res.setTimeout(30000);
+    next();
+});
 
 // Routes
 app.use('/api/admin', adminRoutes);
@@ -111,14 +126,14 @@ app.use((err, req, res, next) => {
 // Background Worker: Auto-finalize expired sessions
 const autoFinalizeWorker = () => {
     const now = new Date().toISOString();
-    db.all("SELECT id, exam_id, participant_id FROM exam_sessions WHERE status = 'ongoing' AND is_suspended = 0 AND end_time < $1", [now], (err, sessions) => {
+    db.all("SELECT id, exam_id, participant_id FROM exam_sessions WHERE status = 'ongoing' AND is_suspended = FALSE AND end_time < $1", [now], (err, sessions) => {
         if (err) return console.error('[Worker] Error fetching expired sessions:', err);
         if (sessions.length > 0) {
             console.log(`[Worker] Found ${sessions.length} expired sessions. Finalizing...`);
             sessions.forEach(session => {
                 calculateSessionScore(session.id, session.exam_id).then(({ totalScore, detailedScores, isPassed }) => {
-                    db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id = $4`,
-                        [totalScore, JSON.stringify(detailedScores), isPassed, session.id],
+                    db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`,
+                        [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, session.id],
                         (err) => {
                             if (err) console.error(`[Worker] Failed to finalize session ${session.id}:`, err);
                             else {
@@ -153,7 +168,7 @@ const gracefulShutdown = () => {
                 console.error('[CAT Backend] Kesalahan menutup database:', err);
                 process.exit(1);
             }
-            console.log('[CAT Backend] Database SQLite diputuskan dengan aman.');
+            console.log('[CAT Backend] Database PostgreSQL pool closed.');
             process.exit(0);
         });
     });

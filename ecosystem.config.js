@@ -3,8 +3,11 @@ module.exports = {
         {
             name: 'cat-server',
             script: './server/index.js',
-            instances: 'max', // Gunakan semua core CPU yang tersedia (Cluster Mode)
-            exec_mode: 'cluster',
+            // PENTING: Socket.IO butuh adapter (Redis/@socket.io/postgres-adapter)
+            // untuk cluster mode. Tanpa adapter, gunakan 1 instance agar WebSocket
+            // broadcast (live monitoring, force logout, dll) berfungsi dengan benar.
+            instances: 1,
+            exec_mode: 'fork',
             autorestart: true,
             watch: false,
             max_memory_restart: '1G',

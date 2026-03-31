@@ -148,7 +148,7 @@ export function ExamProvider({ children }) {
     // Timer Effect
     useEffect(() => {
         let timerId;
-        if (state.isExamStarted && !state.isFinished && !state.isSuspended && state.timeRemaining > 0) {
+        if (state.isExamStarted && !state.isFinished && !state.isSuspended) {
             timerId = setInterval(() => {
                 dispatch({ type: 'TICK_TIMER' });
             }, 1000);
@@ -156,7 +156,7 @@ export function ExamProvider({ children }) {
         return () => {
             if (timerId) clearInterval(timerId);
         };
-    }, [state.isExamStarted, state.isFinished, state.isSuspended, state.timeRemaining]);
+    }, [state.isExamStarted, state.isFinished, state.isSuspended]);
 
     // Auto-finalize when timer ends
     useEffect(() => {

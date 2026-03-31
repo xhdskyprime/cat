@@ -60,6 +60,18 @@ export default function OpsTab() {
         }
     }, [adminHeaders, logType, opsAPI, showToast]);
 
+    const clearLogs = useCallback(async (type = logType) => {
+        if (!window.confirm(`Yakin ingin menghapus semua log ${type.toUpperCase()}?`)) return;
+        try {
+            await axios.post(`${opsAPI}/clear-logs`, { type }, { headers: adminHeaders() });
+            showToast(`Log ${type} berhasil dibersihkan`, 'success');
+            fetchLogs(type);
+        } catch (_e) {
+            void _e;
+            showToast('Gagal menghapus log', 'error');
+        }
+    }, [adminHeaders, logType, opsAPI, showToast, fetchLogs]);
+
     useEffect(() => {
         fetchMetrics();
         fetchLogs('error');
@@ -244,6 +256,12 @@ export default function OpsTab() {
                         <Button variant={logType === 'access' ? 'secondary' : 'outline'} onClick={() => setLogType('access')}>Access</Button>
                         <Button variant="outline" onClick={() => fetchLogs(logType)} disabled={logsLoading}>
                             {logsLoading ? 'Memuat...' : 'Refresh'}
+                        </Button>
+                        <Button variant="danger" onClick={() => clearLogs(logType)} title="Hapus semua log tipe ini">
+                            🗑️ Clear
+                        </Button>
+                        <Button variant="danger" onClick={() => clearLogs('all')} title="Hapus SEMUA log" style={{ opacity: 0.7 }}>
+                            Clear All
                         </Button>
                     </div>
                 </div>
