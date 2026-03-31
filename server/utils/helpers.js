@@ -92,11 +92,11 @@ const calculateSessionScore = (sessionId, examId) => {
                     WHERE a.session_id::text = $1::text
                 `, [sessionId], (err, rows) => err ? rej(err) : res(rows));
             });
-            console.log(`[ScoreDebug] sessionId: ${sessionId}, records count: ${records.length}`);
+
             const exam = await getCachedExam(examId);
             if (!exam) return reject(new Error('Gagal memuat konfigurasi ujian.'));
             const config = typeof exam.config === 'string' ? JSON.parse(exam.config || '{}') : (exam.config || {});
-            console.log(`[ScoreDebug] examId: ${examId}, scoreMode: ${config.score_mode}`);
+
 
             // Get counts (Cached by examId)
             let questionCounts = cache.questionCounts.get(examId);
@@ -157,7 +157,7 @@ const calculateSessionScore = (sessionId, examId) => {
                         const maxPtsInQuestion = Math.max(...options.map(o => Number(o.score) || 0), 1);
                         const calculatedPoints = (Number(chosen.score) / maxPtsInQuestion) * weightPerQuestion;
                         detailedScores[ans.category] += calculatedPoints;
-                        console.log(`[ScoreDebug] TotalMode Cat: ${ans.category}, Answer: ${ans.selected_option_id}, Pts: ${calculatedPoints}`);
+
                     }
                 });
 
@@ -182,9 +182,6 @@ const calculateSessionScore = (sessionId, examId) => {
                         const maxPtsInQuestion = Math.max(...options.map(o => Number(o.score) || 0), 1);
                         const calculatedPoints = (Number(chosen.score) / maxPtsInQuestion) * weightPerQuestion;
                         detailedScores[cat] += calculatedPoints;
-                        console.log(`[ScoreDebug] Cat: ${cat}, Answer: ${ans.selected_option_id}, MatchFound: Yes, Score: ${chosen.score}, Pts: ${calculatedPoints}`);
-                    } else {
-                        console.log(`[ScoreDebug] Cat: ${cat}, Answer: ${ans.selected_option_id}, MatchFound: NO, OptionsID: ${options.map(o => o.id).join(',')}`);
                     }
                 });
 

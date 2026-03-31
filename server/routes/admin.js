@@ -145,7 +145,7 @@ router.get('/participants', authenticateAdmin, (req, res) => {
     db.all(`
         SELECT p.id, p.nik, p.nomor_peserta, p.nama, p.is_active, p.exam_id, p.created_at, e.title as exam_title 
         FROM participants p 
-        LEFT JOIN exams e ON p.exam_id::text = e.id::text 
+        LEFT JOIN exams e ON p.exam_id = e.id 
         ORDER BY p.created_at DESC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -238,9 +238,12 @@ router.get('/participant-history/:id', authenticateAdmin, (req, res) => {
         SELECT s.id, s.start_time, s.end_time, s.status,
                s.final_score_total, s.category_scores, s.is_passed,
                e.title as exam_title,
-               (SELECT COUNT(*) FROM answers WHERE session_id::text = s.id::text AND selected_option_id IS NOT NULL) as answered_count
+               COALESCE(ac.answered_count, 0) as answered_count
         FROM exam_sessions s 
-        JOIN exams e ON s.exam_id::text = e.id::text
+        JOIN exams e ON s.exam_id = e.id
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*) as answered_count FROM answers WHERE session_id = s.id AND selected_option_id IS NOT NULL
+        ) ac ON true
         WHERE s.participant_id::text = $1 
         ORDER BY s.start_time DESC
     `, [req.params.id], (err, rows) => {
@@ -368,8 +371,8 @@ router.put('/exams/:id', authenticateAdmin, (req, res) => {
 
 router.patch('/exams/:id/settings', authenticateAdmin, (req, res) => {
     const { scheduleStart, scheduleEnd, showResult, show_result, allowReview, maxAttempts } = req.body;
-    const finalShowResult = show_result !== undefined ? (show_result === true || show_result === "true" || show_result === 1) : (showResult !== undefined ? (showResult === true || showResult === "true" || showResult === 1) : true);
-    const finalAllowReview = allowReview === true || allowReview === "true" || allowReview === 1;
+    const finalShowResult = show_result !== undefined ? (show_result === true || show_result === "true") : (showResult !== undefined ? (showResult === true || showResult === "true") : true);
+    const finalAllowReview = allowReview === true || allowReview === "true";
     db.run('UPDATE exams SET schedule_start=$1, schedule_end=$2, show_result=$3, allow_review=$4, max_attempts=$5 WHERE id::text=$6',
         [scheduleStart || null, scheduleEnd || null, finalShowResult, finalAllowReview, maxAttempts || 1, req.params.id],
         function (err) { if (err) return res.status(500).json({ error: err.message }); res.json({ success: true }); }

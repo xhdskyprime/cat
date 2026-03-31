@@ -223,7 +223,7 @@ router.post('/exam/start', authenticate, (req, res) => {
             db.run(`INSERT INTO exam_sessions (id, participant_id, exam_id, start_time, end_time) VALUES ($1, $2, $3, $4, $5)`,
                 [newId, participantId, examId, now.toISOString(), endTime.toISOString()], function (err) {
                     if (err) return res.status(500).json({ error: 'Registrasi gagal.' });
-                    serveQuestions(newId, totalMinutes * 60, examId, 0, res);
+                    serveQuestions(newId, totalMinutes * 60, examId, false, res);
                 });
         });
     });
@@ -357,7 +357,7 @@ router.get('/exam/time-sync/:sessionId', authenticate, (req, res) => {
     db.get(`
         SELECT s.end_time, s.status, s.is_suspended, s.remaining_seconds_at_pause, e.show_result
         FROM exam_sessions s
-        JOIN exams e ON s.exam_id::text = e.id::text
+        JOIN exams e ON s.exam_id = e.id
         WHERE s.id::text = $1 AND s.participant_id::text = $2
     `, [req.params.sessionId, req.user.participantId], (err, session) => {
         if (err || !session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
