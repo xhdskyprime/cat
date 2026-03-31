@@ -13,6 +13,16 @@ export default function PesertaTab({ setModal, handleDownloadTemplate }) {
     const [selectedIds, setSelectedIds] = useState([]);
     const [confirmState, setConfirmState] = useState({ isOpen: false, type: 'danger', message: '', onConfirm: null, loading: false });
 
+    const filteredParticipants = useMemo(() => {
+        if (!search) return participants;
+        const lowSearch = search.toLowerCase();
+        return participants.filter(p =>
+            p.nama?.toLowerCase().includes(lowSearch) ||
+            p.nomor_peserta?.toLowerCase().includes(lowSearch) ||
+            p.nik?.includes(lowSearch)
+        );
+    }, [participants, search]);
+
     // Toggle single selection
     const toggleSelect = (id) => {
         setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
