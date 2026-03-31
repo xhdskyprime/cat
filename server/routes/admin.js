@@ -147,7 +147,7 @@ router.get('/participants', authenticateAdmin, (req, res) => {
                s.status as session_status, s.final_score_total as score
         FROM participants p 
         LEFT JOIN exams e ON p.exam_id = e.id 
-        LEFT JOIN sessions s ON p.id = s.participant_id
+        LEFT JOIN exam_sessions s ON p.id = s.participant_id
         ORDER BY p.created_at DESC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -190,9 +190,9 @@ router.post('/participants/bulk-reset-session', authenticateAdmin, (req, res) =>
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Tidak ada peserta yang dipilih.' });
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
-    db.run(`DELETE FROM sessions WHERE participant_id::text IN (${placeholders})`, ids, function(err) {
+    db.run(`DELETE FROM exam_sessions WHERE participant_id::text IN (${placeholders})`, ids, function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        logAudit(req.admin.username, 'BULK_RESET_SESSION', 'sessions', 'multiple', { count: ids.length, ids });
+        logAudit(req.admin.username, 'BULK_RESET_SESSION', 'exam_sessions', 'multiple', { count: ids.length, ids });
         res.json({ success: true, message: `${ids.length} sesi berhasil direset.` });
     });
 });
