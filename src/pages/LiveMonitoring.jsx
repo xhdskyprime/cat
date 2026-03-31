@@ -130,15 +130,16 @@ function LiveMonitoringPage() {
     };
 
     useEffect(() => {
+        // Initial fetch
         fetchData('monitoring', { examId: selectedExamId || undefined });
+        
         const interval = setInterval(() => {
-            // Only fetch if not already loading to prevent request stacking
-            if (!loading) {
-                fetchData('monitoring', { examId: selectedExamId || undefined, silent: true });
-            }
-        }, 10000); // Increased to 10s for better stability with many participants
+            // Use silent: true so AdminContext doesn't trigger setGlobalLoading
+            fetchData('monitoring', { examId: selectedExamId || undefined, silent: true });
+        }, 15000); // 15 seconds is more than enough for stable monitoring
+        
         return () => clearInterval(interval);
-    }, [fetchData, selectedExamId, loading]);
+    }, [fetchData, selectedExamId]);
 
     useEffect(() => {
         if (!selectedExamId && Array.isArray(exams) && exams.length > 0) {

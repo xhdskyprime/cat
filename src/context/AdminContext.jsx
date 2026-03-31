@@ -156,8 +156,10 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
         }
     }, [API, adminHeaders]);
 
+    // Use a ref to track the last fetch time specifically for socket updates
+    const lastSocketFetchRef = React.useRef(0);
+
     useEffect(() => {
-        // Use a more reliable way to get the socket URL
         const socketUrl = API.replace('/api/admin', '').replace('/api', '');
         const token = localStorage.getItem('admin_token');
         const s = io(socketUrl, {
@@ -176,17 +178,26 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
             s.emit('admin_subscribe');
         });
 
-        s.on('admin_update', () => {
-            if (typeof window !== 'undefined' && window.location?.pathname?.startsWith('/admin/live')) {
+        s.on('admin_update', (data) => {
+            // DEBOUNCE: Don't fetch more than once every 3 seconds to prevent battery/resource drain
+            const now = Date.now();
+            if (now - lastSocketFetchRef.current < 3000) return;
+            lastSocketFetchRef.current = now;
+
+            const isLivePage = typeof window !== 'undefined' && window.location?.pathname?.startsWith('/admin/live');
+            
+            if (isLivePage || data?.type === 'SESSION_STARTED' || data?.type === 'SESSION_FINISHED') {
                 const examId = localStorage.getItem('live_monitor_exam_id') || undefined;
                 fetchData('monitoring', { examId, silent: true });
                 return;
             }
-            fetchData(activeTab, { silent: true });
+
+            if (activeTab !== 'peserta' && activeTab !== 'hasil') {
+                fetchData(activeTab, { silent: true });
+            }
         });
 
         s.on('dashboard_update', (data) => {
-            console.log('[SocketDebug] Received dashboard_update:', data);
             if (data.type === 'ANSWER_UPDATE') {
                 setLiveSessions(prev => (prev || []).map(session => {
                     if (session.participant_id === data.participantId) {

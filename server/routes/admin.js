@@ -404,60 +404,72 @@ router.delete('/exams/:id', authenticateAdmin, async (req, res) => {
 
 
 // ---- LIVE MONITORING ----
-router.get('/live-monitoring', authenticateAdmin, (req, res) => {
+router.get('/live-monitoring', authenticateAdmin, async (req, res) => {
     const { examId } = req.query;
-    const where = examId ? 'WHERE s.exam_id::text = $1' : '';
-    const params = examId ? [examId] : [];
-    db.all(`
-        SELECT 
-            s.id as session_id, s.status, s.start_time, s.end_time,
-            s.exam_id,
-            s.final_score_total, s.category_scores, s.is_passed,
-            s.is_suspended, s.extra_time, s.fs_violations, s.tab_violations,
-            p.id as participant_id, p.nik, p.nomor_peserta, p.nama,
-            COALESCE(e.title, '-') as exam_title,
-            e.config as exam_config,
-            COALESCE(ac.answered_count, 0) as answered_count,
-            COALESCE(qc.db_total_questions, 0) as db_total_questions
-        FROM exam_sessions s
-        JOIN participants p ON s.participant_id = p.id
-        LEFT JOIN exams e ON s.exam_id = e.id
-        LEFT JOIN LATERAL (
-            SELECT COUNT(*) as answered_count 
-            FROM answers 
-            WHERE session_id = s.id AND selected_option_id IS NOT NULL
-        ) ac ON true
-        LEFT JOIN LATERAL (
-            SELECT COUNT(*) as db_total_questions 
-            FROM questions 
-            WHERE exam_id = s.exam_id
-        ) qc ON true
-        ${where}
-        ORDER BY s.start_time DESC
-    `, params, (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const processedRows = rows.map(row => {
-            let totalQuestions = row.db_total_questions;
+    // Use the pool from our db wrapper
+    const pool = db.pool;
+    const client = await pool.connect();
+    try {
+        const where = examId ? 'WHERE s.exam_id::text = $1' : '';
+        const params = examId ? [examId] : [];
+        
+        // 1. Get Questions count per Exam (Batch)
+        const qCountRes = await client.query('SELECT exam_id, COUNT(*) as count FROM questions GROUP BY exam_id');
+        const qCountMap = {};
+        qCountRes.rows.forEach(r => qCountMap[r.exam_id] = parseInt(r.count));
+
+        // 2. Main Monitoring Query (Without redundant Lateral Join for questions)
+        const sessionsRes = await client.query(`
+            SELECT 
+                s.id as session_id, s.status, s.start_time, s.end_time,
+                s.exam_id,
+                s.final_score_total, s.category_scores, s.is_passed,
+                s.is_suspended, s.extra_time, s.fs_violations, s.tab_violations,
+                p.id as participant_id, p.nik, p.nomor_peserta, p.nama,
+                COALESCE(e.title, '-') as exam_title,
+                e.config as exam_config,
+                COALESCE(ac.answered_count, 0) as answered_count
+            FROM exam_sessions s
+            JOIN participants p ON s.participant_id = p.id
+            LEFT JOIN exams e ON s.exam_id = e.id
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*) as answered_count 
+                FROM answers 
+                WHERE session_id = s.id AND selected_option_id IS NOT NULL
+            ) ac ON true
+            ${where}
+            ORDER BY s.start_time DESC
+        `, params);
+
+        const processedRows = sessionsRes.rows.map(row => {
+            let totalQuestions = qCountMap[row.exam_id] || 0;
             if (row.exam_config) {
                 try {
                     const config = typeof row.exam_config === 'string' ? JSON.parse(row.exam_config) : (row.exam_config || {});
                     const nonCategoryKeys = ['score_mode', 'total_pass', 'total_full'];
-                    totalQuestions = Object.entries(config)
+                    const configTotal = Object.entries(config)
                         .filter(([key]) => !nonCategoryKeys.includes(key))
                         .reduce((sum, [_, val]) => {
                             const count = typeof val === 'object' ? Number(val.count) : Number(val);
                             return sum + (count || 0);
                         }, 0);
+                    if (configTotal > 0) totalQuestions = configTotal;
                 } catch (_e) { void _e; }
             }
             return { 
                 ...row, 
-                total_questions: totalQuestions || row.db_total_questions,
+                total_questions: totalQuestions,
                 category_scores: typeof row.category_scores === 'string' ? JSON.parse(row.category_scores || '{}') : (row.category_scores || {})
             };
         });
+
         res.json({ sessions: processedRows, serverNow: new Date().toISOString() });
-    });
+    } catch (err) {
+        console.error('Monitoring error:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
 });
 
 // ---- REPORTS & ANALYTICS ----
