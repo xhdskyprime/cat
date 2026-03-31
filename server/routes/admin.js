@@ -109,7 +109,14 @@ router.get('/categories', authenticateAdmin, (req, res) => {
 router.post('/categories', authenticateAdmin, (req, res) => {
     const { id, name, passing_grade, full_score, is_random, sort_order } = req.body;
     db.run('INSERT INTO categories (id, name, passing_grade, full_score, is_random, sort_order) VALUES ($1, $2, $3, $4, $5, $6)',
-        [id.toUpperCase(), name, passing_grade || 0, full_score || 100, (is_random === undefined || is_random === true || is_random === 'true') ? true : false, sort_order || 0],
+        [
+            id.toUpperCase(), 
+            name, 
+            parseInt(passing_grade) || 0, 
+            parseInt(full_score) || 100, 
+            (is_random === undefined || is_random === true || is_random === 'true') ? 1 : 0, 
+            parseInt(sort_order) || 0
+        ],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             logAudit(req.admin.username, 'CREATE_CATEGORY', 'categories', id, req.body);
@@ -122,7 +129,14 @@ router.put('/categories/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
     const { name, passing_grade, full_score, is_random, sort_order } = req.body;
     db.run('UPDATE categories SET name = $1, passing_grade = COALESCE($2, passing_grade), full_score = COALESCE($3, full_score), is_random = COALESCE($4, is_random), sort_order = COALESCE($5, sort_order) WHERE id = $6',
-        [name, passing_grade, full_score, is_random !== undefined ? ((is_random === true || is_random === 'true') ? true : false) : null, sort_order, id],
+        [
+            name, 
+            passing_grade, 
+            full_score, 
+            is_random !== undefined ? ((is_random === true || is_random === 'true') ? 1 : 0) : null, 
+            sort_order, 
+            id
+        ],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             logAudit(req.admin.username, 'UPDATE_CATEGORY', 'categories', id, req.body);
@@ -174,7 +188,7 @@ router.put('/participants/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
     const { nama, nik, nomor_peserta, nomorPeserta, is_active, isActive, exam_id } = req.body;
     const finalNomorPeserta = nomor_peserta || nomorPeserta;
-    const finalActive = is_active !== undefined ? (is_active === true || is_active === "true") : (isActive !== undefined ? (isActive === true || isActive === "true") : true);
+    const finalActive = (is_active === true || is_active === "true" || isActive === true || isActive === "true") ? 1 : 0;
     db.run('UPDATE participants SET nama = $1, nik = $2, nomor_peserta = $3, is_active = $4, exam_id = $5 WHERE id::text = $6',
         [nama, nik, finalNomorPeserta, finalActive, exam_id || null, id],
         function (err) {
@@ -366,7 +380,15 @@ router.post('/exams', authenticateAdmin, (req, res) => {
     const show_result = req.body.show_result !== undefined ? (req.body.show_result === true || req.body.show_result === "true") : true;
     
     db.run('INSERT INTO exams (id, title, description, duration_minutes, token, config, show_result) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [newId, title, description || '', duration_minutes || durationMinutes || 100, token.toUpperCase(), typeof config === 'string' ? config : JSON.stringify(config || {}), show_result],
+        [
+            newId, 
+            title, 
+            description || '', 
+            parseInt(duration_minutes || durationMinutes || 100), 
+            token.toUpperCase(), 
+            typeof config === 'string' ? config : JSON.stringify(config || {}), 
+            show_result === false ? 0 : 1
+        ],
         function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             logAudit(req.admin.username, 'CREATE_EXAM', 'exams', newId, { title, token });
@@ -385,7 +407,16 @@ router.put('/exams/:id', authenticateAdmin, (req, res) => {
     const finalConfig = typeof config === 'string' ? config : JSON.stringify(config || {});
 
     db.run('UPDATE exams SET title = $1, description = $2, duration_minutes = $3, token = $4, config = $5, is_active = $6, show_result = $7 WHERE id::text = $8',
-        [title, description, finalDuration, finalToken, finalConfig, finalActive, finalShowResult, id],
+        [
+            title, 
+            description, 
+            parseInt(finalDuration), 
+            finalToken, 
+            finalConfig, 
+            finalActive ? 1 : 0, 
+            finalShowResult ? 1 : 0, 
+            id
+        ],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             logAudit(req.admin.username, 'UPDATE_EXAM', 'exams', id, { title, token: finalToken });
@@ -399,7 +430,14 @@ router.patch('/exams/:id/settings', authenticateAdmin, (req, res) => {
     const finalShowResult = show_result !== undefined ? (show_result === true || show_result === "true") : (showResult !== undefined ? (showResult === true || showResult === "true") : true);
     const finalAllowReview = allowReview === true || allowReview === "true";
     db.run('UPDATE exams SET schedule_start=$1, schedule_end=$2, show_result=$3, allow_review=$4, max_attempts=$5 WHERE id::text=$6',
-        [scheduleStart || null, scheduleEnd || null, finalShowResult, finalAllowReview, maxAttempts || 1, req.params.id],
+        [
+            scheduleStart || null, 
+            scheduleEnd || null, 
+            finalShowResult ? 1 : 0, 
+            finalAllowReview ? 1 : 0, 
+            parseInt(maxAttempts || 1), 
+            req.params.id
+        ],
         function (err) { if (err) return res.status(500).json({ error: err.message }); res.json({ success: true }); }
     );
 });
@@ -669,7 +707,7 @@ router.post('/sessions/:sessionId/force-finish', authenticateAdmin, (req, res) =
         if (err || !session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
         calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed }) => {
             db.run(`UPDATE exam_sessions SET status = 'finished', end_time = CURRENT_TIMESTAMP, final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`,
-                [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, sessionId], function (err) {
+                [Math.round(totalScore), JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId], function (err) {
                     if (err) return res.status(500).json({ error: err.message });
                     logAudit(req.admin.username, 'FORCE_FINISH', 'exam_sessions', sessionId, { totalScore });
                     const io = req.app.get('io');
