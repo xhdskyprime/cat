@@ -114,7 +114,7 @@ router.post('/categories', authenticateAdmin, (req, res) => {
             name, 
             parseInt(passing_grade) || 0, 
             parseInt(full_score) || 100, 
-            (is_random === undefined || is_random === true || is_random === 'true') ? 1 : 0, 
+            (is_random === undefined || is_random === true || is_random === 'true' || is_random === 1 || is_random === '1') ? 1 : 0, 
             parseInt(sort_order) || 0
         ],
         function (err) {
@@ -133,7 +133,7 @@ router.put('/categories/:id', authenticateAdmin, (req, res) => {
             name, 
             passing_grade, 
             full_score, 
-            is_random !== undefined ? ((is_random === true || is_random === 'true') ? 1 : 0) : null, 
+            is_random !== undefined ? ((is_random === true || is_random === 'true' || is_random === 1 || is_random === '1') ? 1 : 0) : null, 
             sort_order, 
             id
         ],
@@ -188,7 +188,7 @@ router.put('/participants/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
     const { nama, nik, nomor_peserta, nomorPeserta, is_active, isActive, exam_id } = req.body;
     const finalNomorPeserta = nomor_peserta || nomorPeserta;
-    const finalActive = (is_active === true || is_active === "true" || isActive === true || isActive === "true") ? 1 : 0;
+    const finalActive = (is_active === true || is_active === "true" || is_active === 1 || isActive === true || isActive === "true" || isActive === 1) ? 1 : 0;
     db.run('UPDATE participants SET nama = $1, nik = $2, nomor_peserta = $3, is_active = $4, exam_id = $5 WHERE id::text = $6',
         [nama, nik, finalNomorPeserta, finalActive, exam_id || null, id],
         function (err) {
@@ -387,7 +387,7 @@ router.post('/exams', authenticateAdmin, (req, res) => {
             parseInt(duration_minutes || durationMinutes || 100), 
             token.toUpperCase(), 
             typeof config === 'string' ? config : JSON.stringify(config || {}), 
-            show_result === false ? 0 : 1
+            (show_result === false || show_result === 0 || show_result === '0') ? 0 : 1
         ],
         function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
@@ -413,8 +413,8 @@ router.put('/exams/:id', authenticateAdmin, (req, res) => {
             parseInt(finalDuration), 
             finalToken, 
             finalConfig, 
-            finalActive ? 1 : 0, 
-            finalShowResult ? 1 : 0, 
+            (finalActive === true || finalActive === 1 || finalActive === "true" || finalActive === "1") ? 1 : 0, 
+            (finalShowResult === true || finalShowResult === 1 || finalShowResult === "true" || finalShowResult === "1") ? 1 : 0, 
             id
         ],
         function (err) {
@@ -433,8 +433,8 @@ router.patch('/exams/:id/settings', authenticateAdmin, (req, res) => {
         [
             scheduleStart || null, 
             scheduleEnd || null, 
-            finalShowResult ? 1 : 0, 
-            finalAllowReview ? 1 : 0, 
+            (finalShowResult === true || finalShowResult === 1 || finalShowResult === "true" || finalShowResult === "1") ? 1 : 0, 
+            (finalAllowReview === true || finalAllowReview === 1 || finalAllowReview === "true" || finalAllowReview === "1") ? 1 : 0, 
             parseInt(maxAttempts || 1), 
             req.params.id
         ],
