@@ -77,13 +77,17 @@ const db = {
     
     // Note: SQL differences for INSERT OR IGNORE etc. need handling in code refactor.
     // For now, this is a basic shim.
+    console.log('[DB EXEC]', postgresSql, params);
     pool.query(postgresSql, params)
       .then(res => {
         // Mock the 'this' context of sqlite3 (this.lastID, this.changes)
         if (cb) cb.call({ lastID: null, changes: res.rowCount }, null);
       })
       .catch(err => {
-        console.error('[DB ERROR] ', sql, params, err);
+        console.error('[DB ERROR] CRITICAL FAILURE:');
+        console.error('SQL:', postgresSql);
+        console.error('PARAMS:', params);
+        console.error('ERROR MESSAGE:', err.message);
         if (cb) cb(err);
       });
   },
