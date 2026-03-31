@@ -100,8 +100,8 @@ export default function UjianTab({ setModal }) {
         {
             header: 'Pengumuman',
             render: (e) => (
-                <Badge type={e.show_result !== 0 ? 'info' : 'secondary'}>
-                    {e.show_result !== 0 ? 'SKOR TAMPIL' : 'SKOR DISEMBUNYIKAN'}
+                <Badge type={(e.show_result === true || e.show_result === 1 || e.show_result === 'true') ? 'info' : 'secondary'}>
+                    {(e.show_result === true || e.show_result === 1 || e.show_result === 'true') ? 'SKOR TAMPIL' : 'SKOR DISEMBUNYIKAN'}
                 </Badge>
             ),
             align: 'center'
@@ -113,7 +113,7 @@ export default function UjianTab({ setModal }) {
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                     <Button variant="outline" onClick={() => {
                         const data = { ...e };
-                        if (data.show_result === undefined || data.show_result === null) data.show_result = 1;
+                        if (data.show_result === undefined || data.show_result === null) data.show_result = true;
                         setModal({ type: 'exam', mode: 'edit', data });
                     }} style={{ scale: '0.9' }}>
                         ⚙️ Pengaturan
