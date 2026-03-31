@@ -321,18 +321,18 @@ export function ExamProvider({ children }) {
     const resetExam = () => dispatch({ type: 'RESET_EXAM' });
 
     const setAnswer = async (optionId) => {
-        console.log('[ExamContext] setAnswer called with optionId:', optionId);
         dispatch({ type: 'SET_ANSWER', payload: optionId });
-        // Autosave ke server
         try {
             dispatch({ type: 'SET_SAVE_STATUS', payload: { status: 'saving' } });
             const token = localStorage.getItem('cat_token');
-            const questionId = state.questions[state.currentIndex].id;
+            const questionId = state.questions[state.currentIndex]?.id;
+            if (!questionId || !state.sessionId) return;
+
             await axios.post(`${import.meta.env.VITE_API_URL}/api/exam/answer`, {
                 sessionId: state.sessionId,
                 questionId: questionId,
                 selectedOptionId: optionId,
-                isDoubt: state.answers[state.currentIndex]?.isDoubt || false
+                isDoubt: !!state.answers[state.currentIndex]?.isDoubt
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -344,14 +344,17 @@ export function ExamProvider({ children }) {
     };
 
     const toggleDoubt = async () => {
+        const questionId = state.questions[state.currentIndex]?.id;
+        const currentAnswer = state.answers[state.currentIndex];
+        const newDoubtStatus = !currentAnswer?.isDoubt;
+        
         dispatch({ type: 'TOGGLE_DOUBT' });
-        // Autosave status ragu-ragu
+        
         try {
             dispatch({ type: 'SET_SAVE_STATUS', payload: { status: 'saving' } });
             const token = localStorage.getItem('cat_token');
-            const questionId = state.questions[state.currentIndex].id;
-            const currentAnswer = state.answers[state.currentIndex];
-            const newDoubtStatus = !currentAnswer?.isDoubt;
+            if (!questionId || !state.sessionId) return;
+
             await axios.post(`${import.meta.env.VITE_API_URL}/api/exam/answer`, {
                 sessionId: state.sessionId,
                 questionId: questionId,
