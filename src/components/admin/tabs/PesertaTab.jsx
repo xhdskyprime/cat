@@ -10,18 +10,36 @@ export default function PesertaTab({ setModal, handleDownloadTemplate }) {
     const theme = getTheme(mode);
 
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all'); // all, finished, ongoing, none
     const [selectedIds, setSelectedIds] = useState([]);
     const [confirmState, setConfirmState] = useState({ isOpen: false, type: 'danger', message: '', onConfirm: null, loading: false });
 
     const filteredParticipants = useMemo(() => {
-        if (!search) return participants;
-        const lowSearch = search.toLowerCase();
-        return participants.filter(p =>
-            p.nama?.toLowerCase().includes(lowSearch) ||
-            p.nomor_peserta?.toLowerCase().includes(lowSearch) ||
-            p.nik?.includes(lowSearch)
-        );
-    }, [participants, search]);
+        let result = participants;
+
+        // Apply Status Filter
+        if (statusFilter !== 'all') {
+            result = result.filter(p => {
+                const s = p.session_status;
+                if (statusFilter === 'finished') return s === 'finished';
+                if (statusFilter === 'ongoing') return s === 'ongoing';
+                if (statusFilter === 'none') return !s;
+                return true;
+            });
+        }
+
+        // Apply Search
+        if (search) {
+            const lowSearch = search.toLowerCase();
+            result = result.filter(p =>
+                (p.nama || '').toLowerCase().includes(lowSearch) ||
+                (p.nomor_peserta || '').toLowerCase().includes(lowSearch) ||
+                (p.nik || '').includes(lowSearch)
+            );
+        }
+        
+        return result;
+    }, [participants, search, statusFilter]);
 
     // Toggle single selection
     const toggleSelect = (id) => {
@@ -271,13 +289,33 @@ export default function PesertaTab({ setModal, handleDownloadTemplate }) {
             )}
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ flex: '0 0 320px', maxWidth: '320px' }}>
+                <div style={{ flex: '0 0 320px', maxWidth: '320px', display: 'flex', gap: '0.5rem' }}>
                     <Input
-                        placeholder="Cari peserta..."
+                        placeholder="Cari nama/NIK..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        style={{ width: '100%' }}
+                        style={{ flex: 1 }}
                     />
+                    <select
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                        style={{
+                            background: theme.surfaceLight,
+                            border: `1px solid ${theme.border}`,
+                            color: theme.text,
+                            borderRadius: '12px',
+                            padding: '0 0.75rem',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            outline: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <option value="all">Semua Status</option>
+                        <option value="finished">🏁 Selesai</option>
+                        <option value="ongoing">⏳ Ujian</option>
+                        <option value="none">⚪ Belum</option>
+                    </select>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', marginLeft: 'auto', alignItems: 'center' }}>
                     <Button variant="outline" onClick={() => handleDownloadTemplate('participants')}>

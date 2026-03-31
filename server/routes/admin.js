@@ -143,9 +143,11 @@ router.delete('/categories/:id', authenticateAdmin, (req, res) => {
 // ---- PESERTA CRUD ----
 router.get('/participants', authenticateAdmin, (req, res) => {
     db.all(`
-        SELECT p.id, p.nik, p.nomor_peserta, p.nama, p.is_active, p.exam_id, p.created_at, e.title as exam_title 
+        SELECT p.id, p.nik, p.nomor_peserta, p.nama, p.is_active, p.exam_id, p.created_at, e.title as exam_title,
+               s.status as session_status, s.final_score_total as score
         FROM participants p 
         LEFT JOIN exams e ON p.exam_id = e.id 
+        LEFT JOIN sessions s ON p.id = s.participant_id
         ORDER BY p.created_at DESC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
