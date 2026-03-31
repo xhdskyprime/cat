@@ -229,6 +229,27 @@ router.post('/exam/start', authenticate, (req, res) => {
     });
 });
 
+router.get('/exam/time-sync/:sessionId', authenticate, (req, res) => {
+    const { sessionId } = req.params;
+    const { participantId } = req.user;
+    db.get('SELECT end_time, is_suspended, remaining_seconds_at_pause FROM exam_sessions WHERE id::text = $1 AND participant_id::text = $2', 
+        [sessionId, participantId], (err, row) => {
+            if (err || !row) return res.status(404).json({ error: 'Session not found' });
+            
+            const now = new Date();
+            const endTime = new Date(row.end_time);
+            let timeRemaining;
+            
+            if (row.is_suspended) {
+                timeRemaining = row.remaining_seconds_at_pause || 0;
+            } else {
+                timeRemaining = Math.max(0, Math.floor((endTime - now) / 1000));
+            }
+            
+            res.json({ timeRemaining, isSuspended: !!row.is_suspended });
+        });
+});
+
 router.post('/exam/status/sync', authenticate, (req, res) => {
     const { participantId } = req.user;
     const { sessionId, isSuspended, fsViolations, tabViolations } = req.body;
