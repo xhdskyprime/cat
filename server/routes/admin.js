@@ -183,6 +183,29 @@ router.put('/participants/:id', authenticateAdmin, (req, res) => {
     );
 });
 
+// ---- BULK ACTIONS ----
+router.post('/participants/bulk-reset-session', authenticateAdmin, (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Tidak ada peserta yang dipilih.' });
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+    db.run(`DELETE FROM sessions WHERE participant_id::text IN (${placeholders})`, ids, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        logAudit(req.admin.username, 'BULK_RESET_SESSION', 'sessions', 'multiple', { count: ids.length, ids });
+        res.json({ success: true, message: `${ids.length} sesi berhasil direset.` });
+    });
+});
+
+router.post('/participants/bulk-delete', authenticateAdmin, (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Tidak ada peserta yang dipilih.' });
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+    db.run(`DELETE FROM participants WHERE id::text IN (${placeholders})`, ids, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        logAudit(req.admin.username, 'BULK_DELETE_PARTICIPANT', 'participants', 'multiple', { count: ids.length, ids });
+        res.json({ success: true, message: `${ids.length} peserta berhasil dihapus.` });
+    });
+});
+
 router.delete('/participants/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
     db.run('DELETE FROM participants WHERE id::text = $1', [id], function (err) {
