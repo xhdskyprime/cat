@@ -310,7 +310,14 @@ router.post('/exam/answer', authenticate, (req, res) => {
                         is_correct = EXCLUDED.is_correct, 
                         is_doubt = EXCLUDED.is_doubt, 
                         updated_at = CURRENT_TIMESTAMP`,
-                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, !!isDoubt], function (err) {
+                [
+                    crypto.randomUUID(), 
+                    sessionId, 
+                    questionId, 
+                    selectedOptionId, 
+                    isCorrect ? 1 : 0, 
+                    isDoubt ? 1 : 0
+                ], function (err) {
                     if (err) {
                         console.error('[DB SAVE ERROR]:', err);
                         return res.status(500).json({ 
