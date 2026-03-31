@@ -163,7 +163,7 @@ router.post('/exam/start', authenticate, (req, res) => {
 
                 if (!session.is_suspended && timeRemaining <= 0) {
                     return calculateSessionScore(session.id, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode }) => {
-                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, session.id]);
+                        db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, session.id]);
                         if (!exam.show_result) {
                             return res.json({ success: true, isFinished: true, resultAvailable: false, exam: { id: examId, title: exam.title } });
                         }
@@ -254,7 +254,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
             const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? true : false;
             db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT(session_id, question_id) DO UPDATE SET selected_option_id = excluded.selected_option_id, is_correct = excluded.is_correct, is_doubt = excluded.is_doubt, updated_at = CURRENT_TIMESTAMP`,
-                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect ? 1 : 0, isDoubt ? 1 : 0], function (err) {
+                [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect ? 1 : 0, !!isDoubt], function (err) {
                     if (err) return res.status(500).json({ error: 'Save failed.' });
 
                     const io = req.app.get('io');
@@ -262,7 +262,7 @@ router.post('/exam/answer', authenticate, (req, res) => {
                     // Background scoring to keep Admin Monitor Live (No blocking the participant)
                     calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, answeredCount }) => {
                         db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4',
-                            [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId],
+                            [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, sessionId],
                             () => {
                                 // Emit update with FULL score data
                                 io.to('admin_dashboard').emit('dashboard_update', {
@@ -317,7 +317,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
             }
 
             calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode, answeredCount }) => {
-                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [totalScore, JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId], (err) => {
+                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, sessionId], (err) => {
                     if (err) return res.status(500).json({ error: 'Submit failed.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update', { type: 'SESSION_FINISHED', participantId });
                     if (!exam.show_result) {
