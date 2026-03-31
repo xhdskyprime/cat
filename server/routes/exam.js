@@ -312,8 +312,12 @@ router.post('/exam/answer', authenticate, (req, res) => {
                         updated_at = CURRENT_TIMESTAMP`,
                 [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, !!isDoubt], function (err) {
                     if (err) {
-                        console.error('Save error:', err);
-                        return res.status(500).json({ error: 'Save failed.' });
+                        console.error('[DB SAVE ERROR]:', err);
+                        return res.status(500).json({ 
+                            error: 'Save failed.', 
+                            detail: err.message,
+                            sql_code: err.code 
+                        });
                     }
                     debouncedScore(sessionId, session.exam_id, participantId, req.app.get('io'));
                     res.json({ success: true });
