@@ -282,14 +282,19 @@ router.post('/exam/answer', authenticate, (req, res) => {
             const maxScore = Math.max(...opts.map(o => o.score || 0), 1);
             const chosen = opts.find(o => o.id === selectedOptionId);
             const isCorrect = chosen && chosen.score === maxScore && maxScore > 0 ? true : false;
-            db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) VALUES ($1, $2, $3, $4, $5, $6)
-                    ON CONFLICT(session_id, question_id) DO UPDATE SET selected_option_id = excluded.selected_option_id, is_correct = excluded.is_correct, is_doubt = excluded.is_doubt, updated_at = CURRENT_TIMESTAMP`,
+            db.run(`INSERT INTO answers (id, session_id, question_id, selected_option_id, is_correct, is_doubt) 
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    ON CONFLICT(session_id, question_id) DO UPDATE SET 
+                        selected_option_id = EXCLUDED.selected_option_id, 
+                        is_correct = EXCLUDED.is_correct, 
+                        is_doubt = EXCLUDED.is_doubt, 
+                        updated_at = CURRENT_TIMESTAMP`,
                 [crypto.randomUUID(), sessionId, questionId, selectedOptionId, isCorrect, !!isDoubt], function (err) {
-                    if (err) return res.status(500).json({ error: 'Save failed.' });
-
-                    // Debounced background scoring (max 1x per 3 detik per sesi)
+                    if (err) {
+                        console.error('Save error:', err);
+                        return res.status(500).json({ error: 'Save failed.' });
+                    }
                     debouncedScore(sessionId, session.exam_id, participantId, req.app.get('io'));
-
                     res.json({ success: true });
                 });
         });
