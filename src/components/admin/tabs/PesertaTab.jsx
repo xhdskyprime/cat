@@ -70,11 +70,31 @@ export default function PesertaTab({ setModal, handleDownloadTemplate }) {
 
     const columns = [
         {
-            header: 'Nama / NIK',
+            header: 'Nama / NIK / ID',
             render: (p) => (
                 <div style={{ padding: '0.4rem 0' }}>
                     <div style={{ fontWeight: 600 }}>{p.nama}</div>
                     <div style={{ fontSize: '0.75rem', color: theme.textMuted }}>{p.nik}</div>
+                    <div 
+                        style={{ 
+                            fontSize: '0.65rem', 
+                            color: theme.textMuted, 
+                            fontFamily: 'monospace', 
+                            marginTop: '2px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                        onClick={() => {
+                            navigator.clipboard.writeText(p.id);
+                            showToast('ID Peserta Berhasil Disalin');
+                        }}
+                        title="Klik untuk salin ID"
+                    >
+                        ID: {p.id}
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                    </div>
                 </div>
             )
         },
