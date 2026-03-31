@@ -14,7 +14,7 @@ const debouncedScore = (sessionId, examId, participantId, io) => {
         scoringTimers.delete(sessionId);
         calculateSessionScore(sessionId, examId).then(({ totalScore, detailedScores, isPassed, answeredCount }) => {
             db.run('UPDATE exam_sessions SET final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4',
-                [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, sessionId],
+                [Math.round(totalScore), JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId],
                 () => {
                     io.to('admin_dashboard').emit('dashboard_update', {
                         type: 'ANSWER_UPDATE',
@@ -365,7 +365,7 @@ router.post('/exam/submit', authenticate, (req, res) => {
             }
 
             calculateSessionScore(sessionId, session.exam_id).then(({ totalScore, detailedScores, isPassed, pgMap, scoreMode, answeredCount }) => {
-                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [Math.round(totalScore), JSON.stringify(detailedScores), !!isPassed, sessionId], (err) => {
+                db.run(`UPDATE exam_sessions SET status = 'finished', final_score_total = $1, category_scores = $2, is_passed = $3 WHERE id::text = $4`, [Math.round(totalScore), JSON.stringify(detailedScores), isPassed ? 1 : 0, sessionId], (err) => {
                     if (err) return res.status(500).json({ error: 'Submit failed.' });
                     req.app.get('io').to('admin_dashboard').emit('admin_update', { type: 'SESSION_FINISHED', participantId });
                     if (!exam.show_result) {
