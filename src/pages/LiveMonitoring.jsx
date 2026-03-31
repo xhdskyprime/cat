@@ -131,9 +131,14 @@ function LiveMonitoringPage() {
 
     useEffect(() => {
         fetchData('monitoring', { examId: selectedExamId || undefined });
-        const interval = setInterval(() => fetchData('monitoring', { examId: selectedExamId || undefined, silent: true }), 5000);
+        const interval = setInterval(() => {
+            // Only fetch if not already loading to prevent request stacking
+            if (!loading) {
+                fetchData('monitoring', { examId: selectedExamId || undefined, silent: true });
+            }
+        }, 10000); // Increased to 10s for better stability with many participants
         return () => clearInterval(interval);
-    }, [fetchData, selectedExamId]);
+    }, [fetchData, selectedExamId, loading]);
 
     useEffect(() => {
         if (!selectedExamId && Array.isArray(exams) && exams.length > 0) {

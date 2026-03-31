@@ -59,25 +59,21 @@ export const AdminProvider = ({ children, API, adminHeaders }) => {
         try {
             if (target === 'monitoring' || target === 'dashboard' || !target) {
                 const qs = params.examId ? `?examId=${encodeURIComponent(params.examId)}` : '';
-                const [ex, p, live] = await Promise.all([
-                    axios.get(`${API}/exams`, h),
-                    axios.get(`${API}/participants`, h),
-                    axios.get(`${API}/live-monitoring${qs}`, h)
-                ]);
-                setExams(Array.isArray(ex.data) ? ex.data : []);
-                setParticipants(Array.isArray(p.data) ? p.data : []);
-
-                // Handle new live-monitoring format with time sync
-                if (live.data && live.data.sessions) {
-                    setLiveSessions(live.data.sessions);
-                    if (live.data.serverNow) {
-                        const serverTime = new Date(live.data.serverNow).getTime();
-                        const clientTime = Date.now();
-                        setTimeOffset(serverTime - clientTime);
-                        console.log(`[AdminContext] Time sync offset: ${serverTime - clientTime}ms`);
-                    }
+                if (isSilent) {
+                    const { data: ld } = await axios.get(`${API}/live-monitoring${qs}`, h);
+                    setLiveSessions(ld?.sessions || (Array.isArray(ld) ? ld : []));
+                    if (ld?.serverNow) setTimeOffset(new Date(ld.serverNow).getTime() - Date.now());
                 } else {
-                    setLiveSessions(Array.isArray(live.data) ? live.data : []);
+                    const [ex, p, live] = await Promise.all([
+                        axios.get(`${API}/exams`, h),
+                        axios.get(`${API}/participants`, h),
+                        axios.get(`${API}/live-monitoring${qs}`, h)
+                    ]);
+                    setExams(Array.isArray(ex.data) ? ex.data : []);
+                    setParticipants(Array.isArray(p.data) ? p.data : []);
+                    const ld = live.data;
+                    setLiveSessions(ld?.sessions || (Array.isArray(ld) ? ld : []));
+                    if (ld?.serverNow) setTimeOffset(new Date(ld.serverNow).getTime() - Date.now());
                 }
             }
             if (target === 'soal') {
